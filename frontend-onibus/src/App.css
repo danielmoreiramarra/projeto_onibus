@@ -1,0 +1,37 @@
+/* src/App.css */
+.home-hero {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  border-radius: 15px;
+  margin-bottom: 2rem;
+}
+
+.card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border: none;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.navbar-brand {
+  font-size: 1.3rem;
+}
+
+.stats-card {
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+}
+
+.quick-actions .btn {
+  min-width: 160px;
+  padding: 12px 20px;
+  font-size: 1.1rem;
+}

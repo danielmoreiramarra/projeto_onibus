@@ -1,0 +1,18 @@
+export const TipoMotor = {
+    DIESEL: 'DIESEL',
+    ELETRICO: 'ELETRICO',
+    GASOLINA: 'GASOLINA',
+    HIBRIDO: 'HIBRIDO',
+    GNV: 'GNV',
+    BIOCOMBUSTIVEL: 'BIOCOMBUSTIVEL',
+};
+
+export const StatusMotor = {
+    NOVO: 'NOVO',
+    DISPONIVEL: 'DISPONIVEL',
+    EM_USO: 'EM_USO',
+    EM_MANUTENCAO: 'EM_MANUTENCAO',
+    REVISADO: 'REVISADO',
+    DESCARTADO: 'DESCARTADO',
+    VENDIDO: 'VENDIDO',
+};

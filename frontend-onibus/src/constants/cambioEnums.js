@@ -1,0 +1,18 @@
+export const TipoCambio = {
+    MANUAL: 'MANUAL',
+    AUTOMATICO: 'AUTOMATICO',
+    AUTOMATIZADO: 'AUTOMATIZADO',
+    CVT: 'CVT',
+    SEMI_AUTOMATICO: 'SEMI_AUTOMATICO',
+    DUALOGIC: 'DUALOGIC',
+};
+
+export const StatusCambio = {
+    NOVO: 'NOVO',
+    DISPONIVEL: 'DISPONIVEL',
+    EM_USO: 'EM_USO',
+    EM_MANUTENCAO: 'EM_MANUTENCAO',
+    REVISADO: 'REVISADO',
+    DESCARTADO: 'DESCARTADO',
+    VENDIDO: 'VENDIDO',
+};

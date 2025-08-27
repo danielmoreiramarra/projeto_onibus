@@ -1,0 +1,53 @@
+# Executar no terminal no mesmo diretório do projeto \onibus:
+# docker-compose up --build (inicia e sobe a aplicação construindo os contêineres)
+# docker-compose start (inicia a aplicação com os contêineres já contruídos)
+# docker-compose stop (para a aplicação sem apagar os contêineres)
+# docker-compose down (para a aplicação e apaga os contêineres)
+
+version: '3.8'
+
+services:
+  # Banco de dados PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: onibus-postgres
+    environment:
+      POSTGRES_DB: onibus_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - onibus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Aplicação Spring Boot
+  app:
+    build: .
+    container_name: onibus-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/onibus_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - onibus-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  onibus-network:
+    driver: bridge
