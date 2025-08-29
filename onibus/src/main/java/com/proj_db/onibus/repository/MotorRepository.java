@@ -10,75 +10,56 @@ import org.springframework.data.repository.query.Param;
 
 import com.proj_db.onibus.model.Motor;
 import com.proj_db.onibus.model.Motor.StatusMotor;
+import com.proj_db.onibus.model.Motor.TipoMotor;
 
 public interface MotorRepository extends JpaRepository<Motor, Long> {
     
-    // Buscar por número de série
+    // ✅ MÉTODOS DE BUSCA INDIVIDUAIS
     Optional<Motor> findByNumeroSerie(String numeroSerie);
-    
-    // Buscar por código de fabricação
     Optional<Motor> findByCodigoFabricacao(String codigoFabricacao);
-    
-    // Buscar por marca
     List<Motor> findByMarca(String marca);
-    
-    // Buscar por modelo
     List<Motor> findByModelo(String modelo);
-    
-    // Buscar por tipo
-    List<Motor> findByTipo(Motor.TipoMotor tipo);
-    
-    // Buscar por status
+    List<Motor> findByTipo(TipoMotor tipo);
     List<Motor> findByStatus(StatusMotor status);
-    
-    // Buscar por potência mínima
-    List<Motor> findByPotenciaGreaterThanEqual(Integer potenciaMinima);
-    
-    // Buscar por potência máxima
-    List<Motor> findByPotenciaLessThanEqual(Integer potenciaMaxima);
-    
-    // Verificar se número de série existe
+    List<Motor> findMotoresPrecisandoRevisao(LocalDate seisMesesAtras);
+    List<Motor> findMotoresGarantiaPrestesVencer(LocalDate dataLimite);
     boolean existsByNumeroSerie(String numeroSerie);
-    
-    // Verificar se código de fabricação existe
     boolean existsByCodigoFabricacao(String codigoFabricacao);
     
-    // Buscar motores disponíveis (não instalados)
-    @Query("SELECT m FROM Motor m WHERE m.onibus IS NULL AND m.status = 'DISPONIVEL'")
-    List<Motor> findMotoresDisponiveis();
-    
-    // Buscar motores novos
-    @Query("SELECT m FROM Motor m WHERE m.onibus IS NULL AND m.status = 'NOVO'")
-    List<Motor> findMotoresNovos();
-
-    // Buscar motores em uso
-    @Query("SELECT m FROM Motor m WHERE m.onibus IS NOT NULL AND m.status = 'EM_USO'")
-    List<Motor> findMotoresEmUso();
-    
-    // Buscar motores que precisam de revisão
-    @Query("SELECT m FROM Motor m WHERE m.dataUltimaRevisao IS NULL OR " +
-           "m.dataUltimaRevisao <= :dataLimite")
-    List<Motor> findMotoresPrecisandoRevisao(@Param("dataLimite") LocalDate dataLimite);
-    
-    // Buscar motores com garantia prestes a vencer
-    @Query("SELECT m FROM Motor m WHERE m.dataCompra IS NOT NULL AND " +
-           "m.dataCompra <= :dataLimite")
-    List<Motor> findMotoresGarantiaPrestesVencer(@Param("dataLimite") LocalDate dataLimite);
-    
-    // Buscar motores por ônibus específico
-    @Query("SELECT c FROM Motor c WHERE c.onibus.id = :onibusId")
-    Optional<Motor> findByOnibusId(@Param("onibusId") Long onibusId);
-    
-    // Contar motores por tipo
+    // ✅ NOVA CONSULTA COMBINADA PARA TODOS OS CAMPOS
+    @Query("SELECT m FROM Motor m WHERE " +
+           "(:marca IS NULL OR m.marca LIKE %:marca%) AND " +
+           "(:numeroSerie IS NULL OR m.numeroSerie LIKE %:numeroSerie%) AND " +
+           "(:codigoFabricacao IS NULL OR m.codigoFabricacao LIKE %:codigoFabricacao%) AND " +
+           "(:modelo IS NULL OR m.modelo LIKE %:modelo%) AND " +
+           "(:tipo IS NULL OR m.tipo = :tipo) AND " +
+           "(:status IS NULL OR m.status = :status) AND " +
+           "(:potenciaMinima IS NULL OR m.potencia >= :potenciaMinima) AND " +
+           "(:potenciaMaxima IS NULL OR m.potencia <= :potenciaMaxima) AND " +
+           "(:onibusId IS NULL OR m.onibus.id = :onibusId) AND " +
+           "(:cilindrada IS NULL OR m.cilindrada = :cilindrada) AND" + 
+           "(:tipoOleo IS NULL OR m.tipoOleo = : tipoOleo)")
+    List<Motor> searchMotor(
+        @Param("marca") String marca,
+        @Param("numeroSerie") String numeroSerie,
+        @Param("codigoFabricacao") String codigoFabricacao,
+        @Param("modelo") String modelo,
+        @Param("tipo") TipoMotor tipo,
+        @Param("status") StatusMotor status,
+        @Param("potenciaMinima") Integer potenciaMinima,
+        @Param("potenciaMaxima") Integer potenciaMaxima,
+        @Param("onibusId") Long onibusId,
+        @Param("cilindrada") Integer cilindrada,
+        @Param("tipoOleo") String tipoOleo
+    );
+ 
+    // ✅ MÉTODOS DE RELATÓRIO
     @Query("SELECT m.tipo, COUNT(m) FROM Motor m GROUP BY m.tipo")
     List<Object[]> countMotoresPorTipo();
     
-    // Contar motores por status
     @Query("SELECT m.status, COUNT(m) FROM Motor m GROUP BY m.status")
     List<Object[]> countMotoresPorStatus();
     
-    // Calcular potência média por marca
     @Query("SELECT m.marca, AVG(m.potencia) FROM Motor m GROUP BY m.marca")
     List<Object[]> avgPotenciaPorMarca();
-    
 }

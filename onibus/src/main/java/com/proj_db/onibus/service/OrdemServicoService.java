@@ -2,6 +2,8 @@ package com.proj_db.onibus.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import com.proj_db.onibus.model.OrdemServico;
 import com.proj_db.onibus.model.OrdemServico.StatusOrdemServico;
@@ -11,12 +13,14 @@ public interface OrdemServicoService {
     
     OrdemServico criarOrdemServico(OrdemServico ordemServico);
     OrdemServico atualizarOrdemServico(Long id, OrdemServico ordemServicoAtualizada);
-    OrdemServico cancelarOrdemServico(Long id);
     void excluirOrdemServico(Long id);
     
     OrdemServico buscarPorId(Long id);
     List<OrdemServico> buscarTodas();
-    OrdemServico buscarPorNumeroOS(String numeroOS);
+    Optional<OrdemServico> buscarPorNumeroOS(String numeroOS);
+    
+    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
+    List<OrdemServico> searchOrdemServico(Map<String, String> searchTerms);
     
     List<OrdemServico> buscarPorStatus(StatusOrdemServico status);
     List<OrdemServico> buscarPorTipo(TipoOrdemServico tipo);
@@ -26,6 +30,7 @@ public interface OrdemServicoService {
     // ✅ Retornam a entidade atualizada para o cliente
     OrdemServico iniciarExecucao(Long ordemServicoId);
     OrdemServico finalizarOrdemServico(Long ordemServicoId);
+    OrdemServico cancelarOrdemServico(Long ordemServicoId);
     OrdemServico cancelarOrdemServico(Long ordemServicoId, String motivo);
     
     boolean adicionarItem(Long ordemServicoId, Long produtoId, Integer quantidade);

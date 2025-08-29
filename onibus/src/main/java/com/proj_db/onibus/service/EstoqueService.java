@@ -1,6 +1,7 @@
 package com.proj_db.onibus.service;
 
 import java.util.List;
+import java.util.Map;
 
 import com.proj_db.onibus.model.Estoque;
 
@@ -13,14 +14,17 @@ public interface EstoqueService {
     List<Estoque> buscarTodos();
     List<Estoque> buscarPorLocalizacao(String localizacao);
     
+    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
+    List<Estoque> searchEstoque(Map<String, String> searchTerms);
+    
     List<Estoque> buscarEstoqueAbaixoMinimo();
     List<Estoque> buscarEstoqueCritico();
     List<Estoque> buscarEstoqueParaReabastecer();
     
-    boolean adicionarEstoque(Long produtoId, Integer quantidade);
-    boolean reservarEstoque(Long produtoId, Integer quantidade);
-    boolean consumirEstoque(Long produtoId, Integer quantidade);
-    boolean liberarReserva(Long produtoId, Integer quantidade);
+    Estoque adicionarEstoque(Long produtoId, Integer quantidade);
+    Estoque reservarEstoque(Long produtoId, Integer quantidade);
+    Estoque consumirEstoque(Long produtoId, Integer quantidade);
+    Estoque liberarReserva(Long produtoId, Integer quantidade);
     
     Integer consultarQuantidadeDisponivel(Long produtoId);
     Integer consultarQuantidadeReservada(Long produtoId);
@@ -35,4 +39,10 @@ public interface EstoqueService {
     boolean precisaReabastecer(Long produtoId);
     boolean consumirReserva(Long produtoId, Integer quantidade);
     List<Estoque> getAlertasEstoque();
+
+    // ✅ NOVOS MÉTODOS DE RELATÓRIO
+    List<Object[]> findGiroPorCategoria();
+    List<Object[]> findGiroPorMarca();
+    List<Object[]> findGiroPorLocal();
+
 }

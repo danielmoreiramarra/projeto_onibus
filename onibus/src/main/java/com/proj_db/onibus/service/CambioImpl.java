@@ -2,6 +2,7 @@ package com.proj_db.onibus.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,8 +44,12 @@ public class CambioImpl implements CambioService {
 
     @Override
     public Cambio atualizarCambio(Long id, Cambio cambioAtualizado) {
-        Cambio cambioExistente = buscarPorId(id)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado com ID: " + id));
+        Optional<Cambio> optionalCambio = buscarPorId(id);
+        if (optionalCambio.isEmpty()) {
+            throw new RuntimeException("Câmbio não encontrado com ID: " + id);
+        }
+        
+        Cambio cambioExistente = optionalCambio.get();
         
         if (!cambioExistente.getNumeroSerie().equals(cambioAtualizado.getNumeroSerie()) && 
             existeNumeroSerie(cambioAtualizado.getNumeroSerie())) {
@@ -56,7 +61,6 @@ public class CambioImpl implements CambioService {
             throw new RuntimeException("Já existe um câmbio com este código de fabricação: " + cambioAtualizado.getCodigoFabricacao());
         }
         
-        // Atualizar campos permitidos
         cambioExistente.setMarca(cambioAtualizado.getMarca());
         cambioExistente.setModelo(cambioAtualizado.getModelo());
         cambioExistente.setTipo(cambioAtualizado.getTipo());
@@ -99,36 +103,31 @@ public class CambioImpl implements CambioService {
     public Optional<Cambio> buscarPorCodigoFabricacao(String codigoFabricacao) {
         return cambioRepository.findByCodigoFabricacao(codigoFabricacao);
     }
-
+    
+    // ✅ IMPLEMENTAÇÃO DO NOVO MÉTODO DE BUSCA COMBINADA
     @Override
-    public List<Cambio> buscarPorStatus(StatusCambio status) {
-        return cambioRepository.findByStatus(status);
-    }
+    public List<Cambio> searchCambio(Map<String, String> searchTerms) {
+        Long id = searchTerms.containsKey("id") && !searchTerms.get("id").isEmpty() ? Long.valueOf(searchTerms.get("id")) : null;
+        TipoCambio tipo = searchTerms.containsKey("tipo") && !searchTerms.get("tipo").isEmpty() ? TipoCambio.valueOf(searchTerms.get("tipo")) : null;
+        StatusCambio status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusCambio.valueOf(searchTerms.get("status")) : null;
+        String marca = searchTerms.get("marca");
+        String modelo = searchTerms.get("modelo");
+        String numeroSerie = searchTerms.get("numeroSerie");
+        String codigoFabricacao = searchTerms.get("codigoFabricacao");
+        Integer numeroMarchas = searchTerms.containsKey("numeroMarchas") && !searchTerms.get("numeroMarchas").isEmpty() ? Integer.valueOf(searchTerms.get("numeroMarchas")) : null;
+        Long onibusId = searchTerms.containsKey("onibusId") && !searchTerms.get("onibusId").isEmpty() ? Long.valueOf(searchTerms.get("onibusId")) : null;
+        String tipoFluido = searchTerms.get("tipoFluido");
 
-    @Override
-    public List<Cambio> buscarPorTipo(TipoCambio tipo) {
-        return cambioRepository.findByTipo(tipo);
+        return cambioRepository.searchCambio(id, tipo, status, marca, modelo, numeroSerie, codigoFabricacao, numeroMarchas, onibusId, tipoFluido);
     }
-
-    @Override
-    public List<Cambio> buscarPorMarca(String marca) {
-        return cambioRepository.findByMarca(marca);
-    }
-
-    @Override
-    public List<Cambio> buscarDisponiveis() {
-        return cambioRepository.findCambiosDisponiveis();
-    }
-
-    @Override
-    public List<Cambio> buscarEmUso() {
-        return cambioRepository.findCambiosEmUso();
-    }
-
+    
     @Override
     public Cambio enviarParaManutencao(Long cambioId) {
-        Cambio cambio = buscarPorId(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado com ID: " + cambioId));
+        Optional<Cambio> optionalCambio = buscarPorId(cambioId);
+        if (optionalCambio.isEmpty()) {
+            throw new RuntimeException("Câmbio não encontrado com ID: " + cambioId);
+        }
+        Cambio cambio = optionalCambio.get();
         
         if (cambio.getStatus() != StatusCambio.EM_USO && cambio.getStatus() != StatusCambio.DISPONIVEL) {
             throw new RuntimeException("Só é possível enviar para manutenção câmbios em uso ou disponíveis");
@@ -140,8 +139,11 @@ public class CambioImpl implements CambioService {
 
     @Override
     public Cambio retornarDeManutencao(Long cambioId) {
-        Cambio cambio = buscarPorId(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado com ID: " + cambioId));
+        Optional<Cambio> optionalCambio = buscarPorId(cambioId);
+        if (optionalCambio.isEmpty()) {
+            throw new RuntimeException("Câmbio não encontrado com ID: " + cambioId);
+        }
+        Cambio cambio = optionalCambio.get();
         
         if (cambio.getStatus() != StatusCambio.EM_MANUTENCAO) {
             throw new RuntimeException("Só é possível retornar da manutenção câmbios em manutenção");
@@ -152,9 +154,12 @@ public class CambioImpl implements CambioService {
     }
 
     @Override
-    public boolean trocarFluido(Long cambioId, String novoTipoFluido, Double novaQuantidade) {
-        Cambio cambio = buscarPorId(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado com ID: " + cambioId));
+    public Cambio trocarFluido(Long cambioId, String novoTipoFluido, Double novaQuantidade) {
+        Optional<Cambio> optionalCambio = buscarPorId(cambioId);
+        if (optionalCambio.isEmpty()) {
+            throw new RuntimeException("Câmbio não encontrado com ID: " + cambioId);
+        }
+        Cambio cambio = optionalCambio.get();
         
         if (novaQuantidade <= 0) {
             throw new RuntimeException("Quantidade de fluido deve ser positiva");
@@ -163,27 +168,28 @@ public class CambioImpl implements CambioService {
         cambio.setTipoFluido(novoTipoFluido);
         cambio.setQuantidadeFluido(novaQuantidade);
         cambio.setDataUltimaManutencao(LocalDate.now());
-        cambioRepository.save(cambio);
-        
-        return true;
+        return cambioRepository.save(cambio);
     }
 
     @Override
-    public boolean registrarRevisao(Long cambioId) {
-        Cambio cambio = buscarPorId(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado com ID: " + cambioId));
+    public Cambio registrarRevisao(Long cambioId) {
+        Optional<Cambio> optionalCambio = buscarPorId(cambioId);
+        if (optionalCambio.isEmpty()) {
+            throw new RuntimeException("Câmbio não encontrado com ID: " + cambioId);
+        }
+        Cambio cambio = optionalCambio.get();
         
-        cambio.setDataUltimaRevisao(LocalDate.now());
-        cambio.setStatus(StatusCambio.REVISADO);
-        cambioRepository.save(cambio);
-        
-        return true;
+        cambio.revisar();
+        return cambioRepository.save(cambio);
     }
 
     @Override
     public boolean estaEmGarantia(Long cambioId) {
-        Cambio cambio = buscarPorId(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado com ID: " + cambioId));
+        Optional<Cambio> optionalCambio = buscarPorId(cambioId);
+        if (optionalCambio.isEmpty()) {
+            throw new RuntimeException("Câmbio não encontrado com ID: " + cambioId);
+        }
+        Cambio cambio = optionalCambio.get();
         
         return cambio.estaEmGarantia();
     }
@@ -206,7 +212,22 @@ public class CambioImpl implements CambioService {
 
     @Override
     public List<Cambio> buscarCambiosComGarantiaPrestesVencer() {
-        LocalDate trintaDiasFuturo = LocalDate.now().plusDays(30);
-        return cambioRepository.findCambiosGarantiaPrestesVencer(trintaDiasFuturo);
+        LocalDate dataLimite = LocalDate.now().plusMonths(2).minusDays(30);
+        return cambioRepository.findCambiosGarantiaPrestesVencer(dataLimite);
+    }
+
+    @Override
+    public List<Object[]> countCambiosPorTipo() {
+        return cambioRepository.countCambiosPorTipo();
+    }
+
+    @Override
+    public List<Object[]> countCambiosPorMarchas() {
+        return cambioRepository.countCambiosPorMarchas();
+    }
+
+    @Override
+    public List<Object[]> countCambiosPorStatus() {
+        return cambioRepository.countCambiosPorStatus();
     }
 }

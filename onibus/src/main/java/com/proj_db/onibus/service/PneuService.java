@@ -1,10 +1,11 @@
 package com.proj_db.onibus.service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.proj_db.onibus.model.Pneu;
-import com.proj_db.onibus.model.Pneu.StatusPneu;
 
 public interface PneuService {
     
@@ -17,18 +18,16 @@ public interface PneuService {
     Optional<Pneu> buscarPorNumeroSerie(String numeroSerie);
     Optional<Pneu> buscarPorCodigoFabricacao(String codigoFabricacao);
     
-    List<Pneu> buscarPorStatus(StatusPneu status);
-    List<Pneu> buscarPorMarca(String marca);
-    List<Pneu> buscarPorMedida(String medida);
-    List<Pneu> buscarPorMarcaEMedida(String marca, String medida);
-    List<Pneu> buscarDisponiveis();
-    List<Pneu> buscarEmUso();
+    // ✅ Métodos de busca individuais removidos, a busca combinada cobre isso.
+    
+    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
+    List<Pneu> searchPneu(Map<String, String> searchTerms);
     
     Pneu enviarParaManutencao(Long pneuId);
     Pneu retornarDeManutencao(Long pneuId);
     Pneu descartarPneu(Long pneuId);
     
-    boolean registrarKmRodados(Long pneuId, Integer kmAdicionais);
+    Pneu registrarKmRodados(Long pneuId, Integer kmAdicionais); // ✅ Tipo de retorno alterado para Pneu
     boolean precisaTroca(Long pneuId);
     
     boolean existeNumeroSerie(String numeroSerie);
@@ -38,4 +37,9 @@ public interface PneuService {
     List<Pneu> buscarPneusComGarantiaPrestesVencer();
     List<Object[]> estatisticasPorStatus();
     List<Object[]> estatisticasPorMarca();
+
+    // ✅ NOVOS MÉTODOS DE RELATÓRIO
+    List<Object[]> avgKmPorPosicaoNoPeriodo(LocalDate startDate, LocalDate endDate);
+    List<Object[]> avgKmPorMarcaNoPeriodo(LocalDate startDate, LocalDate endDate);
+
 }

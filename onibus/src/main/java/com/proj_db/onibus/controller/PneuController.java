@@ -1,6 +1,7 @@
 package com.proj_db.onibus.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.proj_db.onibus.model.Pneu;
-import com.proj_db.onibus.model.Pneu.StatusPneu;
 import com.proj_db.onibus.service.PneuService;
 
 import jakarta.validation.Valid;
@@ -100,103 +100,15 @@ public class PneuController {
         }
     }
 
-    // ✅ BUSCAR POR NÚMERO DE SÉRIE
-    @GetMapping("/numero-serie/{numeroSerie}")
-    public ResponseEntity<?> buscarPorNumeroSerie(@PathVariable String numeroSerie) {
+    // ✅ NOVO ENDPOINT DE BUSCA COMBINADA
+    @GetMapping("/search")
+    public ResponseEntity<?> searchPneu(@RequestParam Map<String, String> searchTerms) {
         try {
-            Optional<Pneu> pneu = pneuService.buscarPorNumeroSerie(numeroSerie);
-            return pneu.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por número de série: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR CÓDIGO DE FABRICAÇÃO
-    @GetMapping("/codigo-fabricacao/{codigo}")
-    public ResponseEntity<?> buscarPorCodigoFabricacao(@PathVariable String codigo) {
-        try {
-            Optional<Pneu> pneu = pneuService.buscarPorCodigoFabricacao(codigo);
-            return pneu.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por código de fabricação: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR STATUS
-    @GetMapping("/status/{status}")
-    public ResponseEntity<?> buscarPorStatus(@PathVariable StatusPneu status) {
-        try {
-            List<Pneu> pneus = pneuService.buscarPorStatus(status);
+            List<Pneu> pneus = pneuService.searchPneu(searchTerms);
             return ResponseEntity.ok(pneus);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por status: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR MARCA
-    @GetMapping("/marca/{marca}")
-    public ResponseEntity<?> buscarPorMarca(@PathVariable String marca) {
-        try {
-            List<Pneu> pneus = pneuService.buscarPorMarca(marca);
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por marca: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR MEDIDA
-    @GetMapping("/medida/{medida}")
-    public ResponseEntity<?> buscarPorMedida(@PathVariable String medida) {
-        try {
-            List<Pneu> pneus = pneuService.buscarPorMedida(medida);
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por medida: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR MARCA E MEDIDA
-    @GetMapping("/marca/{marca}/medida/{medida}")
-    public ResponseEntity<?> buscarPorMarcaEMedida(
-            @PathVariable String marca,
-            @PathVariable String medida) {
-        try {
-            List<Pneu> pneus = pneuService.buscarPorMarcaEMedida(marca, medida);
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por marca e medida: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR PNEUS DISPONÍVEIS
-    @GetMapping("/disponiveis")
-    public ResponseEntity<?> buscarDisponiveis() {
-        try {
-            List<Pneu> pneus = pneuService.buscarDisponiveis();
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar pneus disponíveis: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR PNEUS EM USO
-    @GetMapping("/em-uso")
-    public ResponseEntity<?> buscarEmUso() {
-        try {
-            List<Pneu> pneus = pneuService.buscarEmUso();
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar pneus em uso: " + e.getMessage());
+                    .body("Erro ao realizar a busca: " + e.getMessage());
         }
     }
 
@@ -242,14 +154,14 @@ public class PneuController {
         }
     }
 
-    // ✅ REGISTRAR KM RODADOS
+    // ✅ REGISTRAR KM RODADOS (retorna o objeto atualizado)
     @PatchMapping("/{id}/registrar-km")
     public ResponseEntity<?> registrarKmRodados(
             @PathVariable Long id,
             @RequestParam Integer kmAdicionais) {
         try {
-            boolean sucesso = pneuService.registrarKmRodados(id, kmAdicionais);
-            return ResponseEntity.ok(sucesso ? "KM registrados com sucesso" : "Falha ao registrar KM");
+            Pneu pneu = pneuService.registrarKmRodados(id, kmAdicionais);
+            return ResponseEntity.ok(pneu);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -269,76 +181,6 @@ public class PneuController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erro ao verificar necessidade de troca: " + e.getMessage());
-        }
-    }
-
-    // ✅ VERIFICAR SE NÚMERO DE SÉRIE EXISTE
-    @GetMapping("/existe-numero-serie/{numeroSerie}")
-    public ResponseEntity<Boolean> existeNumeroSerie(@PathVariable String numeroSerie) {
-        try {
-            boolean existe = pneuService.existeNumeroSerie(numeroSerie);
-            return ResponseEntity.ok(existe);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    // ✅ VERIFICAR SE CÓDIGO DE FABRICAÇÃO EXISTE
-    @GetMapping("/existe-codigo-fabricacao/{codigo}")
-    public ResponseEntity<Boolean> existeCodigoFabricacao(@PathVariable String codigo) {
-        try {
-            boolean existe = pneuService.existeCodigoFabricacao(codigo);
-            return ResponseEntity.ok(existe);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    // ✅ BUSCAR PNEUS PARA TROCA
-    @GetMapping("/para-troca")
-    public ResponseEntity<?> buscarPneusParaTroca() {
-        try {
-            List<Pneu> pneus = pneuService.buscarPneusParaTroca();
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar pneus para troca: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR PNEUS COM GARANTIA PRESTES A VENCER
-    @GetMapping("/garantia-prestes-vencer")
-    public ResponseEntity<?> buscarPneusComGarantiaPrestesVencer() {
-        try {
-            List<Pneu> pneus = pneuService.buscarPneusComGarantiaPrestesVencer();
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar pneus com garantia prestes a vencer: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR ESTATÍSTICAS POR STATUS
-    @GetMapping("/estatisticas-status")
-    public ResponseEntity<?> estatisticasPorStatus() {
-        try {
-            List<Object[]> estatisticas = pneuService.estatisticasPorStatus();
-            return ResponseEntity.ok(estatisticas);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar estatísticas por status: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR ESTATÍSTICAS POR MARCA
-    @GetMapping("/estatisticas-marca")
-    public ResponseEntity<?> estatisticasPorMarca() {
-        try {
-            List<Object[]> estatisticas = pneuService.estatisticasPorMarca();
-            return ResponseEntity.ok(estatisticas);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar estatísticas por marca: " + e.getMessage());
         }
     }
 }

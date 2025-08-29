@@ -1,6 +1,8 @@
 package com.proj_db.onibus.service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -8,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.proj_db.onibus.model.Estoque;
 import com.proj_db.onibus.repository.EstoqueRepository;
+import com.proj_db.onibus.repository.ProdutoRepository;
 
 @Service
 @Transactional
@@ -15,6 +18,8 @@ public class EstoqueImpl implements EstoqueService {
 
     @Autowired
     private EstoqueRepository estoqueRepository;
+    @Autowired
+    private ProdutoRepository produtoRepository;
 
     @Override
     public Estoque criarRegistroEstoque(Estoque estoque) {
@@ -41,7 +46,6 @@ public class EstoqueImpl implements EstoqueService {
             throw new RuntimeException("Registro de estoque não encontrado com ID: " + id);
         }
         
-        // Atualizar campos permitidos
         estoqueExistente.setLocalizacaoFisica(estoqueAtualizado.getLocalizacaoFisica());
         
         return estoqueRepository.save(estoqueExistente);
@@ -62,6 +66,29 @@ public class EstoqueImpl implements EstoqueService {
     public List<Estoque> buscarPorLocalizacao(String localizacao) {
         return estoqueRepository.findByLocalizacaoFisica(localizacao);
     }
+    
+    @Override
+    public List<Estoque> searchEstoque(Map<String, String> searchTerms) {
+        Long estoqueId = searchTerms.containsKey("estoqueId") && !searchTerms.get("estoqueId").isEmpty() ? Long.valueOf(searchTerms.get("estoqueId")) : null;
+        Long produtoId = searchTerms.containsKey("produtoId") && !searchTerms.get("produtoId").isEmpty() ? Long.valueOf(searchTerms.get("produtoId")) : null;
+        String localizacaoFisica = searchTerms.get("localizacaoFisica");
+        String categoria = searchTerms.get("categoria");
+        String marca = searchTerms.get("marca");
+        String unidadeMedida = searchTerms.get("unidadeMedida");
+        Double quantidadeAtualMin = searchTerms.containsKey("quantidadeAtualMin") && !searchTerms.get("quantidadeAtualMin").isEmpty() ? Double.valueOf(searchTerms.get("quantidadeAtualMin")) : null;
+        Double quantidadeAtualMax = searchTerms.containsKey("quantidadeAtualMax") && !searchTerms.get("quantidadeAtualMax").isEmpty() ? Double.valueOf(searchTerms.get("quantidadeAtualMax")) : null;
+        Double quantidadeReservadaMin = searchTerms.containsKey("quantidadeReservadaMin") && !searchTerms.get("quantidadeReservadaMin").isEmpty() ? Double.valueOf(searchTerms.get("quantidadeReservadaMin")) : null;
+        Double quantidadeReservadaMax = searchTerms.containsKey("quantidadeReservadaMax") && !searchTerms.get("quantidadeReservadaMax").isEmpty() ? Double.valueOf(searchTerms.get("quantidadeReservadaMax")) : null;
+        LocalDate dataEntradaMin = searchTerms.containsKey("dataEntradaMin") && !searchTerms.get("dataEntradaMin").isEmpty() ? LocalDate.parse(searchTerms.get("dataEntradaMin")) : null;
+        LocalDate dataEntradaMax = searchTerms.containsKey("dataEntradaMax") && !searchTerms.get("dataEntradaMax").isEmpty() ? LocalDate.parse(searchTerms.get("dataEntradaMax")) : null;
+        LocalDate dataSaidaMin = searchTerms.containsKey("dataSaidaMin") && !searchTerms.get("dataSaidaMin").isEmpty() ? LocalDate.parse(searchTerms.get("dataSaidaMin")) : null;
+        LocalDate dataSaidaMax = searchTerms.containsKey("dataSaidaMax") && !searchTerms.get("dataSaidaMax").isEmpty() ? LocalDate.parse(searchTerms.get("dataSaidaMax")) : null;
+
+        return estoqueRepository.searchEstoque(
+            estoqueId, produtoId, localizacaoFisica, categoria, marca, unidadeMedida,
+            quantidadeAtualMin, quantidadeAtualMax, quantidadeReservadaMin, quantidadeReservadaMax,
+            dataEntradaMin, dataEntradaMax, dataSaidaMin, dataSaidaMax);
+    }
 
     @Override
     public List<Estoque> buscarEstoqueAbaixoMinimo() {
@@ -75,59 +102,59 @@ public class EstoqueImpl implements EstoqueService {
 
     @Override
     public List<Estoque> buscarEstoqueParaReabastecer() {
-        return estoqueRepository.findEstoqueParaReabastecer();
+        return estoqueRepository.findEstoqueAbaixoMinimo();
     }
 
     @Override
-    public boolean adicionarEstoque(Long produtoId, Integer quantidade) {
+    public Estoque adicionarEstoque(Long produtoId, Integer quantidade) {
         if (quantidade <= 0) {
             throw new RuntimeException("Quantidade deve ser positiva");
         }
         
         Estoque estoque = buscarPorProdutoId(produtoId);
-        estoque.adicionarEstoque(quantidade); // Usando a lógica do modelo
+        estoque.adicionarEstoque(quantidade);
         estoqueRepository.save(estoque);
         
-        return true;
+        return estoque;
     }
 
     @Override
-    public boolean reservarEstoque(Long produtoId, Integer quantidade) {
+    public Estoque reservarEstoque(Long produtoId, Integer quantidade) {
         if (quantidade <= 0) {
             throw new RuntimeException("Quantidade deve ser positiva");
         }
         
         Estoque estoque = buscarPorProdutoId(produtoId);
         
-        if (!estoque.reservarEstoque(quantidade)) { // Usando a lógica do modelo
+        if (!estoque.reservarEstoque(quantidade)) {
             throw new RuntimeException("Estoque insuficiente para reserva. Disponível: " + estoque.getQuantidadeDisponivel() + ", Solicitado: " + quantidade);
         }
         
         estoqueRepository.save(estoque);
         
-        return true;
+        return estoque;
     }
 
     @Override
-    public boolean consumirEstoque(Long produtoId, Integer quantidade) {
+    public Estoque consumirEstoque(Long produtoId, Integer quantidade) {
         Estoque estoque = buscarPorProdutoId(produtoId);
         
-        if (!estoque.consumirEstoque(quantidade)) { // Usando a lógica do modelo
+        if (!estoque.consumirEstoque(quantidade)) {
             throw new RuntimeException("Estoque insuficiente para consumo. Disponível: " + estoque.getQuantidadeAtual() + ", Solicitado: " + quantidade);
         }
         
         estoqueRepository.save(estoque);
         
-        return true;
+        return estoque;
     }
 
     @Override
-    public boolean liberarReserva(Long produtoId, Integer quantidade) {
+    public Estoque liberarReserva(Long produtoId, Integer quantidade) {
         Estoque estoque = buscarPorProdutoId(produtoId);
-        estoque.liberarReserva(quantidade); // Usando a lógica do modelo
+        estoque.liberarReserva(quantidade);
         estoqueRepository.save(estoque);
         
-        return true;
+        return estoque;
     }
 
     @Override
@@ -151,13 +178,13 @@ public class EstoqueImpl implements EstoqueService {
     @Override
     public boolean verificarDisponibilidade(Long produtoId, Integer quantidade) {
         Estoque estoque = buscarPorProdutoId(produtoId);
-        return estoque.estaDisponivel(quantidade); // Usando a lógica do modelo
+        return estoque.estaDisponivel(quantidade);
     }
 
     @Override
     public boolean verificarEstoqueMinimo(Long produtoId) {
         Estoque estoque = buscarPorProdutoId(produtoId);
-        return estoque.estaAbaixoEstoqueMinimo(); // Usando a lógica do modelo
+        return estoque.estaAbaixoEstoqueMinimo();
     }
 
     @Override
@@ -183,7 +210,7 @@ public class EstoqueImpl implements EstoqueService {
     @Override
     public boolean consumirReserva(Long produtoId, Integer quantidade) {
         Estoque estoque = buscarPorProdutoId(produtoId);
-        estoque.confirmarConsumoReserva(quantidade); // Usando a lógica do modelo
+        estoque.confirmarConsumoReserva(quantidade);
         estoqueRepository.save(estoque);
         return true;
     }
@@ -191,11 +218,26 @@ public class EstoqueImpl implements EstoqueService {
     @Override
     public boolean precisaReabastecer(Long produtoId) {
         Estoque estoque = buscarPorProdutoId(produtoId);
-        return estoque.estaAbaixoEstoqueMinimo(); // Usando a lógica do modelo
+        return estoque.estaAbaixoEstoqueMinimo();
     }
 
     @Override
     public List<Estoque> getAlertasEstoque() {
-        return estoqueRepository.findEstoqueParaReabastecer(); // Usando a query mais apropriada
+        return estoqueRepository.findEstoqueAbaixoMinimo();
+    }
+
+    @Override
+    public List<Object[]> findGiroPorCategoria() {
+        return estoqueRepository.findGiroPorCategoria();
+    }
+
+    @Override
+    public List<Object[]> findGiroPorMarca() {
+        return estoqueRepository.findGiroPorMarca();
+    }
+
+    @Override
+    public List<Object[]> findGiroPorLocal() {
+        return estoqueRepository.findGiroPorLocal();
     }
 }

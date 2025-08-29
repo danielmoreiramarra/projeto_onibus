@@ -2,11 +2,13 @@ package com.proj_db.onibus.controller;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.proj_db.onibus.model.OrdemServico;
-import com.proj_db.onibus.model.OrdemServico.StatusOrdemServico;
-import com.proj_db.onibus.model.OrdemServico.TipoOrdemServico;
 import com.proj_db.onibus.service.OrdemServicoService;
 
 import jakarta.validation.Valid;
@@ -68,13 +68,13 @@ public class OrdemServicoController {
         }
     }
 
+    // ✅ O controller agora lida com o retorno Optional
     @GetMapping("/numero/{numeroOS}")
     public ResponseEntity<?> buscarPorNumeroOS(@PathVariable String numeroOS) {
         try {
-            OrdemServico ordemServico = ordemServicoService.buscarPorNumeroOS(numeroOS);
-            return ResponseEntity.ok(ordemServico);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            Optional<OrdemServico> ordemServico = ordemServicoService.buscarPorNumeroOS(numeroOS);
+            return ordemServico.map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erro ao buscar por número da OS: " + e.getMessage());
@@ -96,7 +96,19 @@ public class OrdemServicoController {
         }
     }
 
-    // ✅ CANCELAR ORDEM DE SERVIÇO (retorna o objeto atualizado)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> excluirOrdemServico(@PathVariable Long id) {
+        try {
+            ordemServicoService.excluirOrdemServico(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao excluir ordem de serviço: " + e.getMessage());
+        }
+    }
+
     @PatchMapping("/{id}/cancelar")
     public ResponseEntity<?> cancelarOrdemServico(@PathVariable Long id) {
         try {
@@ -110,7 +122,6 @@ public class OrdemServicoController {
         }
     }
 
-    // ✅ CANCELAR ORDEM DE SERVIÇO COM MOTIVO (retorna o objeto atualizado)
     @PatchMapping("/{id}/cancelar-com-motivo")
     public ResponseEntity<?> cancelarOrdemServicoComMotivo(
             @PathVariable Long id,
@@ -126,84 +137,6 @@ public class OrdemServicoController {
         }
     }
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<?> buscarPorStatus(@PathVariable StatusOrdemServico status) {
-        try {
-            List<OrdemServico> ordens = ordemServicoService.buscarPorStatus(status);
-            return ResponseEntity.ok(ordens);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por status: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/tipo/{tipo}")
-    public ResponseEntity<?> buscarPorTipo(@PathVariable TipoOrdemServico tipo) {
-        try {
-            List<OrdemServico> ordens = ordemServicoService.buscarPorTipo(tipo);
-            return ResponseEntity.ok(ordens);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por tipo: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/onibus/{onibusId}")
-    public ResponseEntity<?> buscarPorOnibus(@PathVariable Long onibusId) {
-        try {
-            List<OrdemServico> ordens = ordemServicoService.buscarPorOnibus(onibusId);
-            return ResponseEntity.ok(ordens);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por ônibus: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/periodo")
-    public ResponseEntity<?> buscarPorPeriodo(
-            @RequestParam LocalDate dataInicio,
-            @RequestParam LocalDate dataFim) {
-        try {
-            List<OrdemServico> ordens = ordemServicoService.buscarPorPeriodo(dataInicio, dataFim);
-            return ResponseEntity.ok(ordens);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por período: " + e.getMessage());
-        }
-    }
-
-    @PatchMapping("/{ordemServicoId}/adicionar-item")
-    public ResponseEntity<?> adicionarItem(
-            @PathVariable Long ordemServicoId,
-            @RequestParam Long produtoId,
-            @RequestParam Integer quantidade) {
-        try {
-            boolean sucesso = ordemServicoService.adicionarItem(ordemServicoId, produtoId, quantidade);
-            return ResponseEntity.ok(sucesso ? "Item adicionado com sucesso" : "Falha ao adicionar item");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao adicionar item: " + e.getMessage());
-        }
-    }
-
-    @PatchMapping("/{ordemServicoId}/remover-item")
-    public ResponseEntity<?> removerItem(
-            @PathVariable Long ordemServicoId,
-            @RequestParam Long produtoId) {
-        try {
-            boolean sucesso = ordemServicoService.removerItem(ordemServicoId, produtoId);
-            return ResponseEntity.ok(sucesso ? "Item removido com sucesso" : "Falha ao remover item");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao remover item: " + e.getMessage());
-        }
-    }
-
-    // ✅ INICIAR EXECUÇÃO DA OS (retorna o objeto atualizado)
     @PatchMapping("/{id}/iniciar-execucao")
     public ResponseEntity<?> iniciarExecucao(@PathVariable Long id) {
         try {
@@ -217,7 +150,6 @@ public class OrdemServicoController {
         }
     }
 
-    // ✅ FINALIZAR ORDEM DE SERVIÇO (retorna o objeto atualizado)
     @PatchMapping("/{id}/finalizar")
     public ResponseEntity<?> finalizarOrdemServico(@PathVariable Long id) {
         try {

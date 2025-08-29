@@ -2,6 +2,7 @@ package com.proj_db.onibus.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import com.proj_db.onibus.model.OrdemServico;
 import com.proj_db.onibus.model.OrdemServico.StatusOrdemServico;
 import com.proj_db.onibus.model.OrdemServico.TipoOrdemServico;
 import com.proj_db.onibus.model.Produto;
+import com.proj_db.onibus.repository.ItemOrdemServicoRepository;
 import com.proj_db.onibus.repository.OnibusRepository;
 import com.proj_db.onibus.repository.OrdemServicoRepository;
 import com.proj_db.onibus.repository.ProdutoRepository;
@@ -25,6 +27,7 @@ public class OrdemServicoImpl implements OrdemServicoService {
     @Autowired private OrdemServicoRepository ordemServicoRepository;
     @Autowired private ProdutoRepository produtoRepository;
     @Autowired private EstoqueService estoqueService;
+    @Autowired private ItemOrdemServicoRepository itemOrdemServicoRepository;
     @Autowired private OnibusRepository onibusRepository;
 
     @Override
@@ -56,7 +59,6 @@ public class OrdemServicoImpl implements OrdemServicoService {
         return ordemServicoRepository.save(ordemServico);
     }
     
-    // ✅ IMPLEMENTAÇÃO DO MÉTODO DE ATUALIZAÇÃO
     @Override
     public OrdemServico atualizarOrdemServico(Long id, OrdemServico ordemServicoAtualizada) {
         OrdemServico osExistente = buscarPorId(id);
@@ -74,13 +76,11 @@ public class OrdemServicoImpl implements OrdemServicoService {
         return ordemServicoRepository.save(osExistente);
     }
 
-    // ✅ IMPLEMENTAÇÃO DO MÉTODO CANCELAR (SEM MOTIVO)
     @Override
     public OrdemServico cancelarOrdemServico(Long id) {
         return cancelarOrdemServico(id, "Cancelado pelo usuário");
     }
 
-    // ✅ IMPLEMENTAÇÃO DO MÉTODO INICIAR EXECUÇÃO (RETORNA OBJETO)
     @Override
     public OrdemServico iniciarExecucao(Long ordemServicoId) {
         OrdemServico os = buscarPorId(ordemServicoId);
@@ -92,7 +92,6 @@ public class OrdemServicoImpl implements OrdemServicoService {
         return ordemServicoRepository.save(os);
     }
 
-    // ✅ IMPLEMENTAÇÃO DO MÉTODO FINALIZAR (RETORNA OBJETO)
     @Override
     public OrdemServico finalizarOrdemServico(Long ordemServicoId) {
         OrdemServico os = buscarPorId(ordemServicoId);
@@ -139,9 +138,31 @@ public class OrdemServicoImpl implements OrdemServicoService {
     }
 
     @Override
-    public OrdemServico buscarPorNumeroOS(String numeroOS) {
-        return ordemServicoRepository.findByNumeroOS(numeroOS)
-            .orElseThrow(() -> new RuntimeException("Ordem de Serviço não encontrada com número: " + numeroOS));
+    public List<OrdemServico> searchOrdemServico(Map<String, String> searchTerms) {
+        Long osId = searchTerms.containsKey("osId") && !searchTerms.get("osId").isEmpty() ? Long.parseLong(searchTerms.get("osId")) : null;
+        String numeroOS = searchTerms.get("numeroOS");
+        TipoOrdemServico tipo = searchTerms.containsKey("tipo") && !searchTerms.get("tipo").isEmpty() ? TipoOrdemServico.valueOf(searchTerms.get("tipo")) : null;
+        StatusOrdemServico status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusOrdemServico.valueOf(searchTerms.get("status")) : null;
+        Long onibusId = searchTerms.containsKey("onibusId") && !searchTerms.get("onibusId").isEmpty() ? Long.parseLong(searchTerms.get("onibusId")) : null;
+        LocalDate dataAberturaInicio = searchTerms.containsKey("dataAberturaInicio") && !searchTerms.get("dataAberturaInicio").isEmpty() ? LocalDate.parse(searchTerms.get("dataAberturaInicio")) : null;
+        LocalDate dataAberturaFim = searchTerms.containsKey("dataAberturaFim") && !searchTerms.get("dataAberturaFim").isEmpty() ? LocalDate.parse(searchTerms.get("dataAberturaFim")) : null;
+        LocalDate dataConclusaoInicio = searchTerms.containsKey("dataConclusaoInicio") && !searchTerms.get("dataConclusaoInicio").isEmpty() ? LocalDate.parse(searchTerms.get("dataConclusaoInicio")) : null;
+        LocalDate dataConclusaoFim = searchTerms.containsKey("dataConclusaoFim") && !searchTerms.get("dataConclusaoFim").isEmpty() ? LocalDate.parse(searchTerms.get("dataConclusaoFim")) : null;
+        Double valorTotalMin = searchTerms.containsKey("valorTotalMin") && !searchTerms.get("valorTotalMin").isEmpty() ? Double.parseDouble(searchTerms.get("valorTotalMin")) : null;
+        Double valorTotalMax = searchTerms.containsKey("valorTotalMax") && !searchTerms.get("valorTotalMax").isEmpty() ? Double.parseDouble(searchTerms.get("valorTotalMax")) : null;
+        Long produtoId = searchTerms.containsKey("produtoId") && !searchTerms.get("produtoId").isEmpty() ? Long.parseLong(searchTerms.get("produtoId")) : null;
+        
+        return ordemServicoRepository.searchOrdemServico(
+            osId, numeroOS, tipo, status, onibusId, 
+            dataAberturaInicio, dataAberturaFim, 
+            dataConclusaoInicio, dataConclusaoFim, 
+            valorTotalMin, valorTotalMax, 
+            produtoId);
+    }
+
+    @Override
+    public Optional<OrdemServico> buscarPorNumeroOS(String numeroOS) {
+        return ordemServicoRepository.findByNumeroOS(numeroOS);
     }
 
     @Override
@@ -283,7 +304,6 @@ public class OrdemServicoImpl implements OrdemServicoService {
         return ordemServicoRepository.calcularValorTotalFinalizadoNoPeriodo(dataInicio, dataFim);
     }
 
-    // Método auxiliar para liberar reservas
     private void liberarReservas(OrdemServico os) {
         for (ItemOrdemServico item : os.getItens()) {
             try {
@@ -296,4 +316,5 @@ public class OrdemServicoImpl implements OrdemServicoService {
             }
         }
     }
+    
 }

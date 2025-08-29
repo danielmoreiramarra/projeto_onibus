@@ -1,6 +1,7 @@
 package com.proj_db.onibus.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.proj_db.onibus.model.Produto;
@@ -24,7 +25,9 @@ public interface ProdutoService {
     List<Produto> buscarPorCategoria(Categoria categoria);
     List<Produto> buscarPorUnidadeMedida(UnidadeMedida unidadeMedida);
     List<Produto> buscarPorNome(String nome);
-    List<Produto> buscarPorIntervaloPreco(Double precoMinimo, Double precoMaximo);
+    
+    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
+    List<Produto> searchProduto(Map<String, String> searchTerms);
     
     List<Produto> buscarProdutosAtivos();
     List<Produto> buscarProdutosComEstoqueAbaixoMinimo();
@@ -38,4 +41,11 @@ public interface ProdutoService {
     List<Object[]> buscarProdutosMaisUtilizados();
     List<Object[]> buscarProdutosPorGiro();
     List<Object[]> buscarEstatisticasPorCategoria();
+
+    // ✅ NOVOS MÉTODOS DE RELATÓRIO
+    List<Object[]> countProdutosPorStatus();
+    List<Object[]> countProdutosPorUnidadeMedida();
+    List<Object[]> avgPrecoPorCategoria();
+    List<Object[]> findProdutosComMaiorValorEstoque();
+    List<Object[]> findProdutosMelhorCustoBeneficio();
 }

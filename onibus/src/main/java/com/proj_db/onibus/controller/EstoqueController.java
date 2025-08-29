@@ -1,6 +1,7 @@
 package com.proj_db.onibus.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -83,63 +84,27 @@ public class EstoqueController {
                     .body("Erro ao atualizar estoque: " + e.getMessage());
         }
     }
-
-    // ✅ BUSCAR POR LOCALIZAÇÃO
-    @GetMapping("/localizacao/{localizacao}")
-    public ResponseEntity<?> buscarPorLocalizacao(@PathVariable String localizacao) {
+    
+    // ✅ NOVO ENDPOINT DE BUSCA COMBINADA
+    @GetMapping("/search")
+    public ResponseEntity<?> searchEstoque(@RequestParam Map<String, String> searchTerms) {
         try {
-            List<Estoque> estoques = estoqueService.buscarPorLocalizacao(localizacao);
+            List<Estoque> estoques = estoqueService.searchEstoque(searchTerms);
             return ResponseEntity.ok(estoques);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por localização: " + e.getMessage());
+                    .body("Erro ao realizar a busca: " + e.getMessage());
         }
     }
 
-    // ✅ BUSCAR ESTOQUE ABAIXO DO MÍNIMO
-    @GetMapping("/abaixo-minimo")
-    public ResponseEntity<?> buscarEstoqueAbaixoMinimo() {
-        try {
-            List<Estoque> estoques = estoqueService.buscarEstoqueAbaixoMinimo();
-            return ResponseEntity.ok(estoques);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar estoque abaixo do mínimo: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR ESTOQUE CRÍTICO
-    @GetMapping("/critico")
-    public ResponseEntity<?> buscarEstoqueCritico() {
-        try {
-            List<Estoque> estoques = estoqueService.buscarEstoqueCritico();
-            return ResponseEntity.ok(estoques);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar estoque crítico: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR ESTOQUE PARA REABASTECER
-    @GetMapping("/para-reabastecer")
-    public ResponseEntity<?> buscarEstoqueParaReabastecer() {
-        try {
-            List<Estoque> estoques = estoqueService.buscarEstoqueParaReabastecer();
-            return ResponseEntity.ok(estoques);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar estoque para reabastecer: " + e.getMessage());
-        }
-    }
-
-    // ✅ ADICIONAR ESTOQUE
+    // ✅ ADICIONAR ESTOQUE (retorna o objeto atualizado)
     @PatchMapping("/produto/{produtoId}/adicionar")
     public ResponseEntity<?> adicionarEstoque(
             @PathVariable Long produtoId,
             @RequestParam Integer quantidade) {
         try {
-            boolean sucesso = estoqueService.adicionarEstoque(produtoId, quantidade);
-            return ResponseEntity.ok(sucesso ? "Estoque adicionado com sucesso" : "Falha ao adicionar estoque");
+            Estoque estoque = estoqueService.adicionarEstoque(produtoId, quantidade);
+            return ResponseEntity.ok(estoque);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -148,14 +113,14 @@ public class EstoqueController {
         }
     }
 
-    // ✅ RESERVAR ESTOQUE
+    // ✅ RESERVAR ESTOQUE (retorna o objeto atualizado)
     @PatchMapping("/produto/{produtoId}/reservar")
     public ResponseEntity<?> reservarEstoque(
             @PathVariable Long produtoId,
             @RequestParam Integer quantidade) {
         try {
-            boolean sucesso = estoqueService.reservarEstoque(produtoId, quantidade);
-            return ResponseEntity.ok(sucesso ? "Estoque reservado com sucesso" : "Falha ao reservar estoque");
+            Estoque estoque = estoqueService.reservarEstoque(produtoId, quantidade);
+            return ResponseEntity.ok(estoque);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -164,14 +129,14 @@ public class EstoqueController {
         }
     }
 
-    // ✅ CONSUMIR ESTOQUE
+    // ✅ CONSUMIR ESTOQUE (retorna o objeto atualizado)
     @PatchMapping("/produto/{produtoId}/consumir")
     public ResponseEntity<?> consumirEstoque(
             @PathVariable Long produtoId,
             @RequestParam Integer quantidade) {
         try {
-            boolean sucesso = estoqueService.consumirEstoque(produtoId, quantidade);
-            return ResponseEntity.ok(sucesso ? "Estoque consumido com sucesso" : "Falha ao consumir estoque");
+            Estoque estoque = estoqueService.consumirEstoque(produtoId, quantidade);
+            return ResponseEntity.ok(estoque);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -180,14 +145,14 @@ public class EstoqueController {
         }
     }
 
-    // ✅ LIBERAR RESERVA
+    // ✅ LIBERAR RESERVA (retorna o objeto atualizado)
     @PatchMapping("/produto/{produtoId}/liberar-reserva")
     public ResponseEntity<?> liberarReserva(
             @PathVariable Long produtoId,
             @RequestParam Integer quantidade) {
         try {
-            boolean sucesso = estoqueService.liberarReserva(produtoId, quantidade);
-            return ResponseEntity.ok(sucesso ? "Reserva liberada com sucesso" : "Falha ao liberar reserva");
+            Estoque estoque = estoqueService.liberarReserva(produtoId, quantidade);
+            return ResponseEntity.ok(estoque);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -210,34 +175,6 @@ public class EstoqueController {
         }
     }
 
-    // ✅ CONSULTAR QUANTIDADE RESERVADA
-    @GetMapping("/produto/{produtoId}/quantidade-reservada")
-    public ResponseEntity<?> consultarQuantidadeReservada(@PathVariable Long produtoId) {
-        try {
-            Integer quantidade = estoqueService.consultarQuantidadeReservada(produtoId);
-            return ResponseEntity.ok(quantidade);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao consultar quantidade reservada: " + e.getMessage());
-        }
-    }
-
-    // ✅ CONSULTAR QUANTIDADE TOTAL
-    @GetMapping("/produto/{produtoId}/quantidade-total")
-    public ResponseEntity<?> consultarQuantidadeTotal(@PathVariable Long produtoId) {
-        try {
-            Integer quantidade = estoqueService.consultarQuantidadeTotal(produtoId);
-            return ResponseEntity.ok(quantidade);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao consultar quantidade total: " + e.getMessage());
-        }
-    }
-
     // ✅ VERIFICAR DISPONIBILIDADE
     @GetMapping("/produto/{produtoId}/verificar-disponibilidade")
     public ResponseEntity<?> verificarDisponibilidade(
@@ -254,20 +191,6 @@ public class EstoqueController {
         }
     }
 
-    // ✅ VERIFICAR ESTOQUE MÍNIMO
-    @GetMapping("/produto/{produtoId}/verificar-estoque-minimo")
-    public ResponseEntity<?> verificarEstoqueMinimo(@PathVariable Long produtoId) {
-        try {
-            boolean abaixoMinimo = estoqueService.verificarEstoqueMinimo(produtoId);
-            return ResponseEntity.ok(abaixoMinimo);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao verificar estoque mínimo: " + e.getMessage());
-        }
-    }
-
     // ✅ CALCULAR VALOR TOTAL DO ESTOQUE
     @GetMapping("/valor-total")
     public ResponseEntity<?> calcularValorTotalEstoque() {
@@ -279,19 +202,7 @@ public class EstoqueController {
                     .body("Erro ao calcular valor total do estoque: " + e.getMessage());
         }
     }
-
-    // ✅ CALCULAR VALOR TOTAL POR CATEGORIA
-    @GetMapping("/valor-total-por-categoria")
-    public ResponseEntity<?> calcularValorTotalPorCategoria() {
-        try {
-            List<Object[]> valores = estoqueService.calcularValorTotalPorCategoria();
-            return ResponseEntity.ok(valores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao calcular valor total por categoria: " + e.getMessage());
-        }
-    }
-
+    
     // ✅ BUSCAR PRODUTOS COM MAIOR GIRO
     @GetMapping("/produtos-maior-giro")
     public ResponseEntity<?> buscarProdutosComMaiorGiro() {
@@ -301,48 +212,6 @@ public class EstoqueController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erro ao buscar produtos com maior giro: " + e.getMessage());
-        }
-    }
-
-    // ✅ CONSUMIR RESERVA (Método adicional da implementação)
-    @PatchMapping("/produto/{produtoId}/consumir-reserva")
-    public ResponseEntity<?> consumirReserva(
-            @PathVariable Long produtoId,
-            @RequestParam Integer quantidade) {
-        try {
-            boolean sucesso = estoqueService.consumirReserva(produtoId, quantidade);
-            return ResponseEntity.ok(sucesso ? "Reserva consumida com sucesso" : "Falha ao consumir reserva");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao consumir reserva: " + e.getMessage());
-        }
-    }
-
-    // ✅ VERIFICAR SE PRECISA REABASTECER (Método adicional da implementação)
-    @GetMapping("/produto/{produtoId}/precisa-reabastecer")
-    public ResponseEntity<?> precisaReabastecer(@PathVariable Long produtoId) {
-        try {
-            boolean precisa = estoqueService.precisaReabastecer(produtoId);
-            return ResponseEntity.ok(precisa);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao verificar necessidade de reabastecimento: " + e.getMessage());
-        }
-    }
-
-    // ✅ OBTER ALERTAS DE ESTOQUE (Método adicional da implementação)
-    @GetMapping("/alertas")
-    public ResponseEntity<?> getAlertasEstoque() {
-        try {
-            List<Estoque> alertas = estoqueService.getAlertasEstoque();
-            return ResponseEntity.ok(alertas);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao obter alertas de estoque: " + e.getMessage());
         }
     }
 }

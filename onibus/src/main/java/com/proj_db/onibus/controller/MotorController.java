@@ -1,6 +1,7 @@
 package com.proj_db.onibus.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,11 +16,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.proj_db.onibus.model.Motor;
-import com.proj_db.onibus.model.Motor.StatusMotor;
-import com.proj_db.onibus.model.Motor.TipoMotor;
 import com.proj_db.onibus.service.MotorService;
 
 import jakarta.validation.Valid;
@@ -32,7 +32,6 @@ public class MotorController {
     @Autowired
     private MotorService motorService;
 
-    // ✅ CRIAR NOVO MOTOR
     @PostMapping
     public ResponseEntity<?> criarMotor(@Valid @RequestBody Motor motor) {
         try {
@@ -46,7 +45,6 @@ public class MotorController {
         }
     }
 
-    // ✅ LISTAR TODOS OS MOTORES
     @GetMapping
     public ResponseEntity<List<Motor>> listarTodos() {
         try {
@@ -57,7 +55,6 @@ public class MotorController {
         }
     }
 
-    // ✅ BUSCAR MOTOR POR ID
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
         try {
@@ -70,7 +67,6 @@ public class MotorController {
         }
     }
 
-    // ✅ ATUALIZAR MOTOR
     @PutMapping("/{id}")
     public ResponseEntity<?> atualizarMotor(
             @PathVariable Long id, 
@@ -86,7 +82,6 @@ public class MotorController {
         }
     }
 
-    // ✅ DELETAR MOTOR
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletarMotor(@PathVariable Long id) {
         try {
@@ -100,105 +95,18 @@ public class MotorController {
         }
     }
 
-    // ✅ BUSCAR POR NÚMERO DE SÉRIE
-    @GetMapping("/numero-serie/{numeroSerie}")
-    public ResponseEntity<?> buscarPorNumeroSerie(@PathVariable String numeroSerie) {
+    // ✅ NOVO ENDPOINT DE BUSCA COMBINADA
+    @GetMapping("/search")
+    public ResponseEntity<?> searchMotor(@RequestParam Map<String, String> searchTerms) {
         try {
-            Optional<Motor> motor = motorService.buscarPorNumeroSerie(numeroSerie);
-            return motor.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por número de série: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR CÓDIGO DE FABRICAÇÃO
-    @GetMapping("/codigo-fabricacao/{codigo}")
-    public ResponseEntity<?> buscarPorCodigoFabricacao(@PathVariable String codigo) {
-        try {
-            Optional<Motor> motor = motorService.buscarPorCodigoFabricacao(codigo);
-            return motor.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por código de fabricação: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR STATUS
-    @GetMapping("/status/{status}")
-    public ResponseEntity<?> buscarPorStatus(@PathVariable StatusMotor status) {
-        try {
-            List<Motor> motores = motorService.buscarPorStatus(status);
+            List<Motor> motores = motorService.searchMotor(searchTerms);
             return ResponseEntity.ok(motores);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por status: " + e.getMessage());
+                    .body("Erro ao realizar a busca: " + e.getMessage());
         }
     }
 
-    // ✅ BUSCAR POR TIPO
-    @GetMapping("/tipo/{tipo}")
-    public ResponseEntity<?> buscarPorTipo(@PathVariable TipoMotor tipo) {
-        try {
-            List<Motor> motores = motorService.buscarPorTipo(tipo);
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por tipo: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR POR MARCA
-    @GetMapping("/marca/{marca}")
-    public ResponseEntity<?> buscarPorMarca(@PathVariable String marca) {
-        try {
-            List<Motor> motores = motorService.buscarPorMarca(marca);
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por marca: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR MOTORES DISPONÍVEIS
-    @GetMapping("/disponiveis")
-    public ResponseEntity<?> buscarDisponiveis() {
-        try {
-            List<Motor> motores = motorService.buscarDisponiveis();
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar motores disponíveis: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR MOTORES NOVOS
-    @GetMapping("/novos")
-    public ResponseEntity<?> buscarNovos() {
-        try {
-            List<Motor> motores = motorService.buscarNovos();
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar motores novos: " + e.getMessage());
-        }
-    }
-
-    // ✅ BUSCAR MOTORES EM USO
-    @GetMapping("/em-uso")
-    public ResponseEntity<?> buscarEmUso() {
-        try {
-            List<Motor> motores = motorService.buscarEmUso();
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar motores em uso: " + e.getMessage());
-        }
-    }
-
-    // ✅ ENVIAR PARA MANUTENÇÃO
     @PatchMapping("/{id}/enviar-manutencao")
     public ResponseEntity<?> enviarParaManutencao(@PathVariable Long id) {
         try {
@@ -212,7 +120,6 @@ public class MotorController {
         }
     }
 
-    // ✅ RETORNAR DA MANUTENÇÃO
     @PatchMapping("/{id}/retornar-manutencao")
     public ResponseEntity<?> retornarDeManutencao(@PathVariable Long id) {
         try {
@@ -226,12 +133,11 @@ public class MotorController {
         }
     }
 
-    // ✅ REGISTRAR REVISÃO
     @PatchMapping("/{id}/registrar-revisao")
     public ResponseEntity<?> registrarRevisao(@PathVariable Long id) {
         try {
-            boolean sucesso = motorService.registrarRevisao(id);
-            return ResponseEntity.ok(sucesso ? "Revisão registrada com sucesso" : "Falha ao registrar revisão");
+            Motor motor = motorService.registrarRevisao(id);
+            return ResponseEntity.ok(motor);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -240,7 +146,6 @@ public class MotorController {
         }
     }
 
-    // ✅ VERIFICAR SE ESTÁ EM GARANTIA
     @GetMapping("/{id}/em-garantia")
     public ResponseEntity<?> estaEmGarantia(@PathVariable Long id) {
         try {
@@ -254,7 +159,6 @@ public class MotorController {
         }
     }
 
-    // ✅ VERIFICAR SE NÚMERO DE SÉRIE EXISTE
     @GetMapping("/existe-numero-serie/{numeroSerie}")
     public ResponseEntity<Boolean> existeNumeroSerie(@PathVariable String numeroSerie) {
         try {
@@ -265,7 +169,6 @@ public class MotorController {
         }
     }
 
-    // ✅ VERIFICAR SE CÓDIGO DE FABRICAÇÃO EXISTE
     @GetMapping("/existe-codigo-fabricacao/{codigo}")
     public ResponseEntity<Boolean> existeCodigoFabricacao(@PathVariable String codigo) {
         try {
@@ -276,7 +179,6 @@ public class MotorController {
         }
     }
 
-    // ✅ BUSCAR MOTORES PARA REVISÃO
     @GetMapping("/para-revisao")
     public ResponseEntity<?> buscarMotoresParaRevisao() {
         try {
@@ -288,7 +190,6 @@ public class MotorController {
         }
     }
 
-    // ✅ BUSCAR MOTORES COM GARANTIA PRESTES A VENCER
     @GetMapping("/garantia-prestes-vencer")
     public ResponseEntity<?> buscarMotoresComGarantiaPrestesVencer() {
         try {

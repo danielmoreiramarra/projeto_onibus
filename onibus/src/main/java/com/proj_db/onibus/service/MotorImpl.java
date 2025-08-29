@@ -2,6 +2,7 @@ package com.proj_db.onibus.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,36 +100,26 @@ public class MotorImpl implements MotorService {
         return motorRepository.findByCodigoFabricacao(codigoFabricacao);
     }
 
-    @Override
-    public List<Motor> buscarPorStatus(StatusMotor status) {
-        return motorRepository.findByStatus(status);
-    }
+    // ✅ REMOVIDO MÉTODOS REDUNDANTES
 
+    // ✅ IMPLEMENTAÇÃO DO NOVO MÉTODO DE BUSCA COMBINADA
     @Override
-    public List<Motor> buscarPorTipo(TipoMotor tipo) {
-        return motorRepository.findByTipo(tipo);
-    }
+    public List<Motor> searchMotor(Map<String, String> searchTerms) {
+        String marca = searchTerms.get("marca");
+        String numeroSerie = searchTerms.get("numeroSerie");
+        String codigoFabricacao = searchTerms.get("codigoFabricacao");
+        String modelo = searchTerms.get("modelo");
+        TipoMotor tipo = searchTerms.containsKey("tipo") && !searchTerms.get("tipo").isEmpty() ? TipoMotor.valueOf(searchTerms.get("tipo")) : null;
+        StatusMotor status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusMotor.valueOf(searchTerms.get("status")) : null;
+        Integer potenciaMinima = searchTerms.containsKey("potenciaMinima") && !searchTerms.get("potenciaMinima").isEmpty() ? Integer.valueOf(searchTerms.get("potenciaMinima")) : null;
+        Integer potenciaMaxima = searchTerms.containsKey("potenciaMaxima") && !searchTerms.get("potenciaMaxima").isEmpty() ? Integer.valueOf(searchTerms.get("potenciaMaxima")) : null;
+        Long onibusId = searchTerms.containsKey("onibusId") && !searchTerms.get("onibusId").isEmpty() ? Long.valueOf(searchTerms.get("onibusId")) : null;
+        Integer cilindrada = searchTerms.containsKey("cilindrada") && !searchTerms.get("cilindrada").isEmpty() ? Integer.valueOf(searchTerms.get("cilindrada")) : null;
+        String tipoOleo = searchTerms.get("tipoOleo");
 
-    @Override
-    public List<Motor> buscarPorMarca(String marca) {
-        return motorRepository.findByMarca(marca);
+        return motorRepository.searchMotor(marca, numeroSerie, codigoFabricacao, modelo, tipo, status, potenciaMinima, potenciaMaxima, onibusId, cilindrada, tipoOleo);
     }
-
-    @Override
-    public List<Motor> buscarDisponiveis() {
-        return motorRepository.findMotoresDisponiveis();
-    }
-
-    @Override
-    public List<Motor> buscarNovos() {
-        return motorRepository.findMotoresNovos();
-    }
-
-    @Override
-    public List<Motor> buscarEmUso() {
-        return motorRepository.findMotoresEmUso();
-    }
-
+    
     @Override
     public Motor enviarParaManutencao(Long motorId) {
         Motor motor = buscarPorId(motorId)
@@ -156,14 +147,12 @@ public class MotorImpl implements MotorService {
     }
 
     @Override
-    public boolean registrarRevisao(Long motorId) {
+    public Motor registrarRevisao(Long motorId) {
         Motor motor = buscarPorId(motorId)
             .orElseThrow(() -> new RuntimeException("Motor não encontrado com ID: " + motorId));
         
-        motor.revisar(); // Usando a lógica do modelo
-        motorRepository.save(motor);
-        
-        return true;
+        motor.revisar();
+        return motorRepository.save(motor);
     }
 
     @Override
@@ -171,7 +160,7 @@ public class MotorImpl implements MotorService {
         Motor motor = buscarPorId(motorId)
             .orElseThrow(() -> new RuntimeException("Motor não encontrado com ID: " + motorId));
         
-        return motor.estaEmGarantia(); // Usando a lógica do modelo
+        return motor.estaEmGarantia();
     }
 
     @Override
@@ -192,7 +181,22 @@ public class MotorImpl implements MotorService {
 
     @Override
     public List<Motor> buscarMotoresComGarantiaPrestesVencer() {
-        LocalDate dataLimite = LocalDate.now().plusMonths(2).minusDays(30); // Lógica corrigida para os últimos 30 dias de garantia
+        LocalDate dataLimite = LocalDate.now().plusMonths(2).minusDays(30);
         return motorRepository.findMotoresGarantiaPrestesVencer(dataLimite);
+    }
+    
+    @Override
+    public List<Object[]> countMotoresPorTipo() {
+        return motorRepository.countMotoresPorTipo();
+    }
+
+    @Override
+    public List<Object[]> countMotoresPorStatus() {
+        return motorRepository.countMotoresPorStatus();
+    }
+
+    @Override
+    public List<Object[]> avgPotenciaPorMarca() {
+        return motorRepository.avgPotenciaPorMarca();
     }
 }

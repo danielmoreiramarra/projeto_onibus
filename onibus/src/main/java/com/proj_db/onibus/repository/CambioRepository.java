@@ -14,73 +14,53 @@ import com.proj_db.onibus.model.Cambio.TipoCambio;
 
 public interface CambioRepository extends JpaRepository<Cambio, Long> {
     
-    // Buscar por número de série
+    // ✅ MÉTODOS DE BUSCA INDIVIDUAIS
     Optional<Cambio> findByNumeroSerie(String numeroSerie);
-    
-    // Buscar por código de fabricação
     Optional<Cambio> findByCodigoFabricacao(String codigoFabricacao);
-    
-    // Buscar por marca
     List<Cambio> findByMarca(String marca);
-    
-    // Buscar por modelo
     List<Cambio> findByModelo(String modelo);
-    
-    // Buscar por tipo
     List<Cambio> findByTipo(TipoCambio tipo);
-    
-    // Buscar por número de marchas
     List<Cambio> findByNumeroMarchas(Integer numeroMarchas);
-    
-    // Buscar por status
     List<Cambio> findByStatus(StatusCambio status);
-    
-    // Verificar se número de série existe
+    List<Cambio> findCambiosGarantiaPrestesVencer(LocalDate dataLimite);
+    List<Cambio> findCambiosPrecisandoRevisao(LocalDate seisMesesAtras);
+    List<Cambio> findCambiosParaRevisao(LocalDate seisMesesAtras);
     boolean existsByNumeroSerie(String numeroSerie);
-    
-    // Verificar se código de fabricação existe
     boolean existsByCodigoFabricacao(String codigoFabricacao);
 
-    // Buscar câmbios novos
-    @Query("SELECT c FROM Cambio c WHERE c.onibus IS NULL AND c.status = 'NOVO'")
-    List<Cambio> findCambiosNovos();
-    
-    // Buscar câmbios disponíveis (não instalados)
-    @Query("SELECT c FROM Cambio c WHERE c.onibus IS NULL AND c.status = 'DISPONIVEL'")
-    List<Cambio> findCambiosDisponiveis();
-    
-    // Buscar câmbios em uso
-    @Query("SELECT c FROM Cambio c WHERE c.onibus IS NOT NULL AND c.status = 'EM_USO'")
-    List<Cambio> findCambiosEmUso();
-    
-    // Buscar câmbios que precisam de revisão
-    @Query("SELECT c FROM Cambio c WHERE c.dataUltimaRevisao IS NULL OR " +
-           "c.dataUltimaRevisao <= :dataLimite")
-    List<Cambio> findCambiosPrecisandoRevisao(@Param("dataLimite") LocalDate dataLimite);
-    
-    // Buscar câmbios com garantia prestes a vencer
-    @Query("SELECT c FROM Cambio c WHERE c.dataCompra IS NOT NULL AND " +
-           "c.dataCompra <= :dataLimite")
-    List<Cambio> findCambiosGarantiaPrestesVencer(@Param("dataLimite") LocalDate dataLimite);
-    
-    // Buscar câmbios por um ônibus específico
-    @Query("SELECT c FROM Cambio c WHERE c.onibus.id = :onibusId")
-    Optional<Cambio> findByOnibusId(@Param("onibusId") Long onibusId);
-    
-    // Buscar câmbios por tipo de fluido
-    @Query("SELECT c FROM Cambio c WHERE c.tipoFluido = :tipoFluido")
-    List<Cambio> findByTipoFluido(@Param("tipoFluido") String tipoFluido);
-    
-    // Contar câmbios por tipo
+    // ✅ NOVA CONSULTA COMBINADA PARA TODOS OS CAMPOS
+    @Query("SELECT c FROM Cambio c WHERE " +
+           "(:id IS NULL OR c.id = :id) AND " +
+           "(:tipo IS NULL OR c.tipo = :tipo) AND " +
+           "(:status IS NULL OR c.status = :status) AND " +
+           "(:marca IS NULL OR c.marca LIKE %:marca%) AND " +
+           "(:modelo IS NULL OR c.modelo LIKE %:modelo%) AND " +
+           "(:numeroSerie IS NULL OR c.numeroSerie LIKE %:numeroSerie%) AND " +
+           "(:codigoFabricacao IS NULL OR c.codigoFabricacao LIKE %:codigoFabricacao%) AND " +
+           "(:numeroMarchas IS NULL OR c.numeroMarchas = :numeroMarchas) AND " +
+           "(:onibusId IS NULL OR c.onibus.id = :onibusId) AND " +
+           "(:tipoFluido IS NULL OR c.tipoFluido = : tipoFluido)")
+    List<Cambio> searchCambio(
+        @Param("id") Long id,
+        @Param("tipo") TipoCambio tipo,
+        @Param("status") StatusCambio status,
+        @Param("marca") String marca,
+        @Param("modelo") String modelo,
+        @Param("numeroSerie") String numeroSerie,
+        @Param("codigoFabricacao") String codigoFabricacao,
+        @Param("numeroMarchas") Integer numeroMarchas,
+        @Param("onibusId") Long onibusId,
+        @Param("tipoFluido") String tipoFluido
+    );
+
+    // ✅ MÉTODOS DE RELATÓRIO
     @Query("SELECT c.tipo, COUNT(c) FROM Cambio c GROUP BY c.tipo")
     List<Object[]> countCambiosPorTipo();
     
-    // Contar câmbios por número de marchas
     @Query("SELECT c.numeroMarchas, COUNT(c) FROM Cambio c GROUP BY c.numeroMarchas")
     List<Object[]> countCambiosPorMarchas();
     
-    // Contar câmbios por status
     @Query("SELECT c.status, COUNT(c) FROM Cambio c GROUP BY c.status")
     List<Object[]> countCambiosPorStatus();
-    
+
 }

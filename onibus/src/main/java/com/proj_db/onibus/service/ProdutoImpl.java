@@ -2,6 +2,7 @@ package com.proj_db.onibus.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -130,13 +131,30 @@ public class ProdutoImpl implements ProdutoService {
     }
 
     @Override
+    public List<Produto> searchProduto(Map<String, String> searchTerms) {
+        Long id = searchTerms.containsKey("id") && !searchTerms.get("id").isEmpty() ? Long.valueOf(searchTerms.get("id")) : null;
+        String nome = searchTerms.get("nome");
+        String marca = searchTerms.get("marca");
+        String codigoBarras = searchTerms.get("codigoBarras");
+        String codigoInterno = searchTerms.get("codigoInterno");
+        String descricao = searchTerms.get("descricao");
+        Double precoUnitarioMin = searchTerms.containsKey("precoUnitarioMin") && !searchTerms.get("precoUnitarioMin").isEmpty() ? Double.valueOf(searchTerms.get("precoUnitarioMin")) : null;
+        Double precoUnitarioMax = searchTerms.containsKey("precoUnitarioMax") && !searchTerms.get("precoUnitarioMax").isEmpty() ? Double.valueOf(searchTerms.get("precoUnitarioMax")) : null;
+        String localizacao = searchTerms.get("localizacao");
+        Categoria categoria = searchTerms.containsKey("categoria") && !searchTerms.get("categoria").isEmpty() ? Categoria.valueOf(searchTerms.get("categoria")) : null;
+        StatusProduto status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusProduto.valueOf(searchTerms.get("status")) : null;
+        UnidadeMedida unidadeMedida = searchTerms.containsKey("unidadeMedida") && !searchTerms.get("unidadeMedida").isEmpty() ? UnidadeMedida.valueOf(searchTerms.get("unidadeMedida")) : null;
+
+        return produtoRepository.searchProduto(id, nome, marca, codigoBarras, codigoInterno, descricao, precoUnitarioMin, precoUnitarioMax, localizacao, categoria, status, unidadeMedida);
+    }
+
     public List<Produto> buscarPorIntervaloPreco(Double precoMinimo, Double precoMaximo) {
         return produtoRepository.findByPrecoUnitarioBetween(precoMinimo, precoMaximo);
     }
 
     @Override
     public List<Produto> buscarProdutosAtivos() {
-        return produtoRepository.findProdutosAtivos();
+        return produtoRepository.findByStatus(StatusProduto.ATIVO);
     }
 
     @Override
@@ -181,11 +199,37 @@ public class ProdutoImpl implements ProdutoService {
         return produtoRepository.findProdutosPorGiro();
     }
 
+    // ✅ IMPLEMENTAÇÃO DOS MÉTODOS DE RELATÓRIO FALTANTES
     @Override
     public List<Object[]> buscarEstatisticasPorCategoria() {
         return produtoRepository.countProdutosPorCategoria();
     }
 
+    @Override
+    public List<Object[]> countProdutosPorStatus() {
+        return produtoRepository.countProdutosPorStatus();
+    }
+
+    @Override
+    public List<Object[]> countProdutosPorUnidadeMedida() {
+        return produtoRepository.countProdutosPorUnidadeMedida();
+    }
+
+    @Override
+    public List<Object[]> avgPrecoPorCategoria() {
+        return produtoRepository.avgPrecoPorCategoria();
+    }
+
+    @Override
+    public List<Object[]> findProdutosComMaiorValorEstoque() {
+        return produtoRepository.findProdutosComMaiorValorEstoque();
+    }
+
+    @Override
+    public List<Object[]> findProdutosMelhorCustoBeneficio() {
+        return produtoRepository.findProdutosMelhorCustoBeneficio();
+    }
+    
     private Produto buscarProdutoPorId(Long id) {
         return produtoRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));

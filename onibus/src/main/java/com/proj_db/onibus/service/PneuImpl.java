@@ -2,14 +2,17 @@ package com.proj_db.onibus.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Autowired; // Adicionado para a busca
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.proj_db.onibus.model.Pneu;
+import com.proj_db.onibus.model.Pneu.PosicaoPneu;
 import com.proj_db.onibus.model.Pneu.StatusPneu;
+import com.proj_db.onibus.repository.OnibusRepository;
 import com.proj_db.onibus.repository.PneuRepository;
 
 @Service
@@ -18,6 +21,9 @@ public class PneuImpl implements PneuService {
 
     @Autowired
     private PneuRepository pneuRepository;
+    
+    @Autowired
+    private OnibusRepository onibusRepository; // ✅ Adicionado para a busca
 
     @Override
     public Pneu criarPneu(Pneu pneu) {
@@ -94,36 +100,29 @@ public class PneuImpl implements PneuService {
         return pneuRepository.findByCodigoFabricacao(codigoFabricacao);
     }
 
+    // ✅ IMPLEMENTAÇÃO DO NOVO MÉTODO DE BUSCA COMBINADA
     @Override
-    public List<Pneu> buscarPorStatus(StatusPneu status) {
-        return pneuRepository.findByStatus(status);
-    }
+    public List<Pneu> searchPneu(Map<String, String> searchTerms) {
+        Long id = searchTerms.containsKey("id") && !searchTerms.get("id").isEmpty() ? Long.parseLong(searchTerms.get("id")) : null;
+        PosicaoPneu posicao = searchTerms.containsKey("posicao") && !searchTerms.get("posicao").isEmpty() ? PosicaoPneu.valueOf(searchTerms.get("posicao")) : null;
+        StatusPneu status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusPneu.valueOf(searchTerms.get("status")) : null;
+        Long onibusId = searchTerms.containsKey("onibusId") && !searchTerms.get("onibusId").isEmpty() ? Long.parseLong(searchTerms.get("onibusId")) : null;
+        String medida = searchTerms.get("medida");
+        String marca = searchTerms.get("marca");
+        String numeroSerie = searchTerms.get("numeroSerie");
+        String codigoFabricacao = searchTerms.get("codigoFabricacao");
+        Integer kmRodadosMin = searchTerms.containsKey("kmRodadosMin") && !searchTerms.get("kmRodadosMin").isEmpty() ? Integer.valueOf(searchTerms.get("kmRodadosMin")) : null;
+        Integer kmRodadosMax = searchTerms.containsKey("kmRodadosMax") && !searchTerms.get("kmRodadosMax").isEmpty() ? Integer.valueOf(searchTerms.get("kmRodadosMax")) : null;
+        LocalDate dataInstalacaoMin = searchTerms.containsKey("dataInstalacaoMin") && !searchTerms.get("dataInstalacaoMin").isEmpty() ? LocalDate.parse(searchTerms.get("dataInstalacaoMin")) : null;
+        LocalDate dataInstalacaoMax = searchTerms.containsKey("dataInstalacaoMax") && !searchTerms.get("dataInstalacaoMax").isEmpty() ? LocalDate.parse(searchTerms.get("dataInstalacaoMax")) : null;
+        LocalDate dataCompraMin = searchTerms.containsKey("dataCompraMin") && !searchTerms.get("dataCompraMin").isEmpty() ? LocalDate.parse(searchTerms.get("dataCompraMin")) : null;
+        LocalDate dataCompraMax = searchTerms.containsKey("dataCompraMax") && !searchTerms.get("dataCompraMax").isEmpty() ? LocalDate.parse(searchTerms.get("dataCompraMax")) : null;
+        LocalDate dataUltimaReformaMin = searchTerms.containsKey("dataUltimaReformaMin") && !searchTerms.get("dataUltimaReformaMin").isEmpty() ? LocalDate.parse(searchTerms.get("dataUltimaReformaMin")) : null;
+        LocalDate dataUltimaReformaMax = searchTerms.containsKey("dataUltimaReformaMax") && !searchTerms.get("dataUltimaReformaMax").isEmpty() ? LocalDate.parse(searchTerms.get("dataUltimaReformaMax")) : null;
 
-    @Override
-    public List<Pneu> buscarPorMarca(String marca) {
-        return pneuRepository.findByMarca(marca);
+        return pneuRepository.searchPneu(id, posicao, status, onibusId, medida, marca, numeroSerie, codigoFabricacao, kmRodadosMin, kmRodadosMax, dataInstalacaoMin, dataInstalacaoMax, dataCompraMin, dataCompraMax, dataUltimaReformaMin, dataUltimaReformaMax);
     }
-
-    @Override
-    public List<Pneu> buscarPorMedida(String medida) {
-        return pneuRepository.findByMedida(medida);
-    }
-
-    @Override
-    public List<Pneu> buscarPorMarcaEMedida(String marca, String medida) {
-        return pneuRepository.findByMarcaAndMedida(marca, medida);
-    }
-
-    @Override
-    public List<Pneu> buscarDisponiveis() {
-        return pneuRepository.findPneusDisponiveis();
-    }
-
-    @Override
-    public List<Pneu> buscarEmUso() {
-        return pneuRepository.findPneusEmUso();
-    }
-
+    
     @Override
     public Pneu enviarParaManutencao(Long pneuId) {
         Pneu pneu = buscarPneuPorId(pneuId);
@@ -152,12 +151,13 @@ public class PneuImpl implements PneuService {
     public Pneu descartarPneu(Long pneuId) {
         Pneu pneu = buscarPneuPorId(pneuId);
         
-        pneu.descartar(); // Usando a lógica do modelo
+        pneu.descartar();
         return pneuRepository.save(pneu);
     }
 
+    // ✅ Tipo de retorno alterado para Pneu
     @Override
-    public boolean registrarKmRodados(Long pneuId, Integer kmAdicionais) {
+    public Pneu registrarKmRodados(Long pneuId, Integer kmAdicionais) {
         Pneu pneu = buscarPneuPorId(pneuId);
         
         if (kmAdicionais <= 0) {
@@ -165,15 +165,12 @@ public class PneuImpl implements PneuService {
         }
         
         pneu.setKmRodados(pneu.getKmRodados() + kmAdicionais);
-        pneuRepository.save(pneu);
-        
-        return true;
+        return pneuRepository.save(pneu);
     }
 
     @Override
     public boolean precisaTroca(Long pneuId) {
         Pneu pneu = buscarPneuPorId(pneuId);
-        
         return pneu.getKmRodados() >= 80000;
     }
 
@@ -206,6 +203,17 @@ public class PneuImpl implements PneuService {
     @Override
     public List<Object[]> estatisticasPorMarca() {
         return pneuRepository.avgKmPorMarca();
+    }
+    
+    // ✅ IMPLEMENTAÇÃO DOS NOVOS MÉTODOS DE RELATÓRIO
+    @Override
+    public List<Object[]> avgKmPorPosicaoNoPeriodo(LocalDate startDate, LocalDate endDate) {
+        return pneuRepository.avgKmPorPosicaoNoPeriodo(startDate, endDate);
+    }
+    
+    @Override
+    public List<Object[]> avgKmPorMarcaNoPeriodo(LocalDate startDate, LocalDate endDate) {
+        return pneuRepository.avgKmPorMarcaNoPeriodo(startDate, endDate);
     }
 
     private Pneu buscarPneuPorId(Long id) {
