@@ -1,21 +1,16 @@
-// src/pages/ProdutoPage.js
 import React, { useState } from 'react';
 import CrudTable from '../components/CrudTable';
 import CrudForm from '../components/CrudForm';
 import SearchBar from '../components/SearchBar';
-import BackButton from '../components/BackButton'; // ✅ Importando o botão de voltar
+import BackButton from '../components/BackButton';
 import { produtoService } from '../services/produtoService';
 import useSearch from '../hooks/useSearch';
 import { Categoria, UnidadeMedida, StatusProduto } from '../constants/produtoEnums';
+import { useNavigate } from 'react-router-dom';
 
 const ProdutoPage = () => {
-    // ✅ Usando o hook de busca para gerenciar o estado dos produtos
-    const { data: produtos, loading, error, onSearch, refetch } = useSearch(produtoService, {
-        // Mapeamento dos campos de busca para os métodos do service
-        nome: produtoService.getByNome,
-        marca: produtoService.getByMarca,
-        categoria: produtoService.getByCategoria
-    });
+    const { data: produtos, loading, error, onSearch, refetch } = useSearch(produtoService);
+    const navigate = useNavigate();
 
     const [editing, setEditing] = useState(false);
     const [currentProduto, setCurrentProduto] = useState(null);
@@ -25,23 +20,35 @@ const ProdutoPage = () => {
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'nome', label: 'Nome' },
+        { key: 'marca', label: 'Marca' },
         { key: 'codigoInterno', label: 'Código Interno' },
-        { key: 'categoria', label: 'Categoria' },
+        { key: 'codigoBarras', label: 'Cód. Barras' },
+        { key: 'descricao', label: 'Descrição' },
         { key: 'precoUnitario', label: 'Preço', format: (value) => `R$ ${value?.toFixed(2)}` },
+        { key: 'estoqueMinimo', label: 'Estoque Mínimo' },
+        { key: 'localizacao', label: 'Localização' },
+        { key: 'categoria', label: 'Categoria' },
         { key: 'unidadeMedida', label: 'Unidade' },
         { key: 'status', label: 'Status' }
     ];
 
     // ✅ Campos de busca para o SearchBar
     const searchFields = [
-        { name: 'nome', label: 'Buscar por Nome', type: 'text' },
-        { name: 'marca', label: 'Buscar por Marca', type: 'text' },
-        { 
-            name: 'categoria', 
-            label: 'Buscar por Categoria', 
-            type: 'select', 
-            options: Object.values(Categoria).map(c => ({ value: c, label: c })) 
-        },
+        { name: 'id', label: 'ID do Produto', type: 'number' },
+        { name: 'nome', label: 'Nome', type: 'text' },
+        { name: 'marca', label: 'Marca', type: 'text' },
+        { name: 'codigoInterno', label: 'Cód. Interno', type: 'text' },
+        { name: 'codigoBarras', label: 'Cód. Barras', type: 'text' },
+        { name: 'descricao', label: 'Descrição', type: 'text' },
+        { name: 'precoUnitarioMin', label: 'Preço Mín.', type: 'number' },
+        { name: 'precoUnitarioMax', label: 'Preço Máx.', type: 'number' },
+        { name: 'localizacao', label: 'Localização', type: 'text' },
+        { name: 'categoria', label: 'Categoria', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(Categoria).map(c => ({ value: c, label: c }))] },
+        { name: 'status', label: 'Status', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(StatusProduto).map(s => ({ value: s, label: s }))] },
+        { name: 'unidadeMedida', label: 'Unidade de Medida', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(UnidadeMedida).map(u => ({ value: u, label: u }))] },
     ];
 
     // ✅ Campos de formulário com selects para enums
@@ -118,8 +125,8 @@ const ProdutoPage = () => {
             }
             setShowForm(false);
             refetch();
-        } catch (err) {
-            console.error('Erro ao salvar:', err);
+        } catch (error) {
+            console.error('Erro ao salvar:', error);
         }
     };
     
@@ -133,6 +140,8 @@ const ProdutoPage = () => {
         let processedValue = value;
         if (type === 'number') {
             processedValue = value === '' ? null : Number(value);
+        } else if (type === 'date') {
+            processedValue = value || null;
         }
         setCurrentProduto(prev => ({
             ...prev,
@@ -148,7 +157,7 @@ const ProdutoPage = () => {
                     <button className="btn btn-primary" onClick={handleCreate} disabled={loading}>
                         {loading ? '⏳' : '➕'} Novo Produto
                     </button>
-                    <BackButton /> {/* ✅ Posição do botão de voltar */}
+                    <BackButton />
                 </div>
             </div>
 

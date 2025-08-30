@@ -1,4 +1,3 @@
-// src/pages/OrdemServicoPage.js
 import React, { useState, useEffect } from 'react';
 import CrudTable from '../components/CrudTable';
 import CrudForm from '../components/CrudForm';
@@ -6,31 +5,159 @@ import SearchBar from '../components/SearchBar';
 import BackButton from '../components/BackButton';
 import { ordemServicoService } from '../services/ordemServicoService';
 import { onibusService } from '../services/onibusService';
+import { produtoService } from '../services/produtoService';
+import { estoqueService } from '../services/estoqueService';
+import { motorService } from '../services/motorService';
+import { cambioService } from '../services/cambioService';
 import useSearch from '../hooks/useSearch';
 import { StatusOrdemServico, TipoOrdemServico } from '../constants/ordemServicoEnums';
 import { useNavigate } from 'react-router-dom';
+import { TipoMotor } from '../constants/motorEnums';
+import { TipoCambio } from '../constants/cambioEnums';
+import { StatusPneu } from '../constants/pneuEnums';
+
+
+// Componente para a lógica de criação de OS
+const NovaOrdemServicoForm = ({ onibusList, produtosList, onCancel, onSubmit, loading }) => {
+    const [formData, setFormData] = useState({
+        onibusId: '',
+        tipo: 'CORRETIVA',
+        descricao: '',
+        itens: [],
+        servicosPreventivos: {}
+    });
+
+    const [produtoSelecionado, setProdutoSelecionado] = useState('');
+    const [quantidadeProduto, setQuantidadeProduto] = useState(1);
+
+    const handleAddItem = () => {
+        if (!produtoSelecionado || quantidadeProduto <= 0) return;
+        
+        const produto = produtosList.find(p => p.id === produtoSelecionado);
+        if (!produto) return;
+
+        const novoItem = {
+            produto: { id: produto.id, nome: produto.nome },
+            quantidade: quantidadeProduto
+        };
+        
+        setFormData(prev => ({
+            ...prev,
+            itens: [...prev.itens, novoItem]
+        }));
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleCheckboxChange = (e) => {
+        const { name, checked } = e.target;
+        setFormData(prev => ({ 
+            ...prev,
+            servicosPreventivos: { ...prev.servicosPreventivos, [name]: checked }
+        }));
+    };
+    
+    return (
+        <div className="card my-4">
+            <div className="card-header d-flex justify-content-between align-items-center">
+                <h5 className="card-title mb-0">➕ Criar Nova Ordem de Serviço</h5>
+                <button onClick={onCancel} className="btn btn-secondary btn-sm">Voltar</button>
+            </div>
+            <div className="card-body">
+                <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+                    {/* Campos Principais da OS */}
+                    <div className="row g-3 mb-4">
+                        <div className="col-md-6">
+                            <label className="form-label">Ônibus</label>
+                            <select className="form-select" name="onibusId" value={formData.onibusId} onChange={handleInputChange} required>
+                                <option value="">Selecione um ônibus</option>
+                                {onibusList.map(o => (
+                                    <option key={o.id} value={o.id}>{o.numeroFrota} - {o.modelo}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-md-6">
+                            <label className="form-label">Tipo de OS</label>
+                            <select className="form-select" name="tipo" value={formData.tipo} onChange={handleInputChange} required>
+                                {Object.values(TipoOrdemServico).map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* ✅ Se a OS for preventiva, mostra a seleção de serviços */}
+                    {formData.tipo === TipoOrdemServico.PREVENTIVA && (
+                        <div className="card mb-4">
+                            <div className="card-header">Serviços Preventivos</div>
+                            <div className="card-body">
+                                {/* Checkboxes para os serviços */}
+                                <div className="form-check">
+                                    <input className="form-check-input" type="checkbox" name="servicoMotorOleo" id="motorOleo" checked={formData.servicosPreventivos.servicoMotorOleo || false} onChange={handleCheckboxChange} />
+                                    <label className="form-check-label" htmlFor="motorOleo">Troca de Óleo do Motor</label>
+                                </div>
+                                {/* ... outros serviços ... */}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ✅ Seleção de Produtos do Estoque */}
+                    <h5 className="mt-4">Itens de Estoque</h5>
+                    <div className="input-group mb-3">
+                        <select className="form-select" value={produtoSelecionado} onChange={e => setProdutoSelecionado(e.target.value)}>
+                            <option value="">Selecione um produto</option>
+                            {produtosList.map(p => (
+                                <option key={p.id} value={p.id}>{p.nome} ({p.codigoInterno})</option>
+                            ))}
+                        </select>
+                        <input type="number" className="form-control" value={quantidadeProduto} onChange={e => setQuantidadeProduto(Number(e.target.value))} min="1" />
+                        <button className="btn btn-outline-primary" type="button" onClick={handleAddItem}>Adicionar</button>
+                    </div>
+
+                    {/* Tabela de itens da OS */}
+                    <CrudTable
+                        data={formData.itens}
+                        columns={[{key: 'produto.nome', label: 'Produto'}, {key: 'quantidade', label: 'Qtd.'}]}
+                    />
+                    
+                    {/* Botões de Ação */}
+                    <div className="d-flex gap-2 mt-4">
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? '⏳ Criando...' : '💾 Criar OS'}
+                        </button>
+                        <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 const OrdemServicoPage = () => {
     const navigate = useNavigate();
-    const { data: ordens, loading, error, onSearch, refetch } = useSearch(ordemServicoService, {
-        numeroOS: ordemServicoService.getByNumeroOS,
-        status: ordemServicoService.getByStatus,
-        tipo: ordemServicoService.getByTipo
-    });
+    const { data: ordens, loading, error, onSearch, refetch } = useSearch(ordemServicoService);
 
     const [editing, setEditing] = useState(false);
     const [currentOrdem, setCurrentOrdem] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [onibusList, setOnibusList] = useState([]);
+    const [produtosList, setProdutosList] = useState([]);
     const [stats, setStats] = useState([]);
     const [showDetalhes, setShowDetalhes] = useState(false);
-
+    
     useEffect(() => {
         const loadOnibusAndStats = async () => {
             try {
                 const onibusResponse = await onibusService.getAll();
                 setOnibusList(onibusResponse.data);
                 
+                const produtosResponse = await produtoService.getAll();
+                setProdutosList(produtosResponse.data);
+
                 const statsResponse = await ordemServicoService.buscarEstatisticasPorStatus();
                 setStats(statsResponse.data);
             } catch (err) {
@@ -100,7 +227,7 @@ const OrdemServicoPage = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja excluir esta ordem de serviço?')) {
             try {
-                await ordemServicoService.excluir(id);
+                await ordemServicoService.delete(id);
                 refetch();
             } catch (err) {
                 console.error("Erro ao deletar:", err);

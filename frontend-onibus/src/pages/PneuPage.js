@@ -2,53 +2,50 @@ import React, { useState } from 'react';
 import CrudTable from '../components/CrudTable';
 import CrudForm from '../components/CrudForm';
 import SearchBar from '../components/SearchBar';
-import BackButton from '../components/BackButton'; // ✅ Importando o botão de voltar
+import BackButton from '../components/BackButton';
 import { pneuService } from '../services/pneuService';
 import useSearch from '../hooks/useSearch';
 import { StatusPneu, PosicaoPneu } from '../constants/pneuEnums';
+import { useNavigate } from 'react-router-dom';
 
 const PneuPage = () => {
     // ✅ Usando o hook de busca para gerenciar o estado dos pneus
-    const { data: pneus, loading, error, onSearch, refetch } = useSearch(pneuService, {
-        // Mapeamento dos campos de busca para os métodos do service
-        status: pneuService.getByStatus,
-        marca: pneuService.getByMarca,
-        medida: pneuService.getByMedida,
-        numeroSerie: pneuService.getByNumeroSerie,
-        codigoFabricacao: pneuService.getByCodigoFabricacao
-    });
-    
+    const { data: pneus, loading, error, onSearch, refetch } = useSearch(pneuService);
+    const navigate = useNavigate();
+
     const [editing, setEditing] = useState(false);
     const [currentPneu, setCurrentPneu] = useState(null);
     const [showForm, setShowForm] = useState(false);
 
-    // ✅ Colunas para a tabela
+    // ✅ Colunas para a tabela (adicionando todos os atributos)
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'marca', label: 'Marca' },
         { key: 'medida', label: 'Medida' },
-        { key: 'numeroSerie', label: 'Número Série' },
+        { key: 'codigoFabricacao', label: 'Código Fab.' },
+        { key: 'anoFabricacao', label: 'Ano Fab.' },
+        { key: 'numeroSerie', label: 'Série' },
+        { key: 'dataCompra', label: 'Compra' },
+        { key: 'periodoGarantiaMeses', label: 'Garantia (meses)' },
         { key: 'status', label: 'Status' },
-        { key: 'posicao', label: 'Posição' }
+        { key: 'kmRodados', label: 'KM Rodados' },
+        { key: 'dataInstalacao', label: 'Instalação' },
+        { key: 'posicao', label: 'Posição' },
     ];
 
     // ✅ Campos de busca para o SearchBar
     const searchFields = [
-        { name: 'marca', label: 'Buscar por Marca', type: 'text' },
-        { name: 'medida', label: 'Buscar por Medida', type: 'text' },
-        { name: 'numeroSerie', label: 'Buscar por Número de Série', type: 'text' },
-        { 
-            name: 'status', 
-            label: 'Buscar por Status', 
-            type: 'select', 
-            options: Object.values(StatusPneu).map(s => ({ value: s, label: s }))
-        },
-        { 
-            name: 'posicao', 
-            label: 'Buscar por Posição', 
-            type: 'select', 
-            options: Object.values(PosicaoPneu).map(p => ({ value: p, label: p }))
-        }
+        { name: 'marca', label: 'Marca', type: 'text' },
+        { name: 'medida', label: 'Medida', type: 'text' },
+        { name: 'numeroSerie', label: 'Número de Série', type: 'text' },
+        { name: 'codigoFabricacao', label: 'Código de Fabricação', type: 'text' },
+        { name: 'status', label: 'Status', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(StatusPneu).map(s => ({ value: s, label: s }))] },
+        { name: 'posicao', label: 'Posição', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(PosicaoPneu).map(p => ({ value: p, label: p }))] },
+        { name: 'kmRodadosMin', label: 'KM Mín.', type: 'number' },
+        { name: 'kmRodadosMax', label: 'KM Máx.', type: 'number' },
+        { name: 'onibusId', label: 'ID Ônibus', type: 'number' },
     ];
 
     // ✅ Campos do formulário com selects para enums
@@ -113,8 +110,8 @@ const PneuPage = () => {
             }
             setShowForm(false);
             refetch();
-        } catch (err) {
-            console.error('Erro ao salvar:', err);
+        } catch (error) {
+            console.error("Erro ao salvar:", error);
         }
     };
     
@@ -149,7 +146,11 @@ const PneuPage = () => {
                 </div>
             </div>
 
-            {error && <div className="alert alert-danger">{error}</div>}
+            {error && (
+                <div className="alert alert-danger">
+                    <strong>Erro:</strong> {error}
+                </div>
+            )}
 
             {showForm ? (
                 <CrudForm

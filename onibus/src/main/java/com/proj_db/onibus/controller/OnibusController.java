@@ -35,7 +35,6 @@ public class OnibusController {
     @Autowired
     private OnibusService onibusService;
 
-    // ✅ CRIAR NOVO ÔNIBUS
     @PostMapping
     public ResponseEntity<?> criarOnibus(@Valid @RequestBody Onibus onibus) {
         try {
@@ -49,7 +48,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ LISTAR TODOS OS ÔNIBUS
     @GetMapping
     public ResponseEntity<List<Onibus>> listarTodos() {
         try {
@@ -60,7 +58,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ BUSCAR ÔNIBUS POR ID
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
         try {
@@ -73,7 +70,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ ATUALIZAR ÔNIBUS
     @PutMapping("/{id}")
     public ResponseEntity<?> atualizarOnibus(
             @PathVariable Long id, 
@@ -89,7 +85,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ DELETAR ÔNIBUS
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletarOnibus(@PathVariable Long id) {
         try {
@@ -115,7 +110,18 @@ public class OnibusController {
         }
     }
 
-    // ✅ COLOCAR EM MANUTENÇÃO
+    // ✅ ENDPOINT DE BUSCA POR STATUS (RE-ADICIONADO)
+    @GetMapping("/status/{status}")
+    public ResponseEntity<?> buscarPorStatus(@PathVariable StatusOnibus status) {
+        try {
+            List<Onibus> onibus = onibusService.buscarPorStatus(status);
+            return ResponseEntity.ok(onibus);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao buscar por status: " + e.getMessage());
+        }
+    }
+
     @PatchMapping("/{id}/colocar-em-manutencao")
     public ResponseEntity<?> colocarEmManutencao(@PathVariable Long id) {
         try {
@@ -129,7 +135,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ RETIRAR DA MANUTENÇÃO
     @PatchMapping("/{id}/retirar-da-manutencao")
     public ResponseEntity<?> retirarDeManutencao(@PathVariable Long id) {
         try {
@@ -143,7 +148,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ APOSENTAR ÔNIBUS
     @PatchMapping("/{id}/aposentar")
     public ResponseEntity<?> aposentarOnibus(@PathVariable Long id) {
         try {
@@ -157,7 +161,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ VENDER ÔNIBUS
     @PatchMapping("/{id}/vender")
     public ResponseEntity<?> venderOnibus(@PathVariable Long id) {
         try {
@@ -171,7 +174,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ VERIFICAR DISPONIBILIDADE
     @GetMapping("/{id}/disponibilidade")
     public ResponseEntity<?> verificarDisponibilidade(
             @PathVariable Long id,
@@ -188,7 +190,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ NOVO ENDPOINT: INSTALAR MOTOR
     @PatchMapping("/{onibusId}/instalar/motor/{motorId}")
     public ResponseEntity<?> instalarMotor(@PathVariable Long onibusId, @PathVariable Long motorId) {
         try {
@@ -201,7 +202,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ NOVO ENDPOINT: REMOVER MOTOR
     @PatchMapping("/{onibusId}/remover/motor/{motorId}")
     public ResponseEntity<?> removerMotor(@PathVariable Long onibusId, @PathVariable Long motorId) {
         try {
@@ -214,7 +214,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ NOVO ENDPOINT: INSTALAR CÂMBIO
     @PatchMapping("/{onibusId}/instalar/cambio/{cambioId}")
     public ResponseEntity<?> instalarCambio(@PathVariable Long onibusId, @PathVariable Long cambioId) {
         try {
@@ -227,7 +226,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ NOVO ENDPOINT: REMOVER CÂMBIO
     @PatchMapping("/{onibusId}/remover/cambio/{cambioId}")
     public ResponseEntity<?> removerCambio(@PathVariable Long onibusId, @PathVariable Long cambioId) {
         try {
@@ -240,12 +238,11 @@ public class OnibusController {
         }
     }
 
-    // ✅ NOVO ENDPOINT: INSTALAR PNEU
     @PatchMapping("/{onibusId}/instalar/pneu/{pneuId}")
     public ResponseEntity<?> instalarPneu(
             @PathVariable Long onibusId,
             @PathVariable Long pneuId,
-            @RequestParam PosicaoPneu posicao) { // Usando o enum PosicaoPneu
+            @RequestParam PosicaoPneu posicao) {
         try {
             Onibus onibus = onibusService.instalarPneu(onibusId, pneuId, posicao);
             return ResponseEntity.ok(onibus);
@@ -256,7 +253,6 @@ public class OnibusController {
         }
     }
 
-    // ✅ NOVO ENDPOINT: REMOVER PNEU
     @PatchMapping("/{onibusId}/remover/pneu/{pneuId}")
     public ResponseEntity<?> removerPneu(@PathVariable Long onibusId, @PathVariable Long pneuId) {
         try {

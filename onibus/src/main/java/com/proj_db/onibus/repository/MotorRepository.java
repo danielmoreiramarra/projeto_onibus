@@ -21,10 +21,16 @@ public interface MotorRepository extends JpaRepository<Motor, Long> {
     List<Motor> findByModelo(String modelo);
     List<Motor> findByTipo(TipoMotor tipo);
     List<Motor> findByStatus(StatusMotor status);
-    List<Motor> findMotoresPrecisandoRevisao(LocalDate seisMesesAtras);
-    List<Motor> findMotoresGarantiaPrestesVencer(LocalDate dataLimite);
     boolean existsByNumeroSerie(String numeroSerie);
     boolean existsByCodigoFabricacao(String codigoFabricacao);
+
+    @Query("SELECT m FROM Motor m WHERE m.dataCompra IS NOT NULL AND " +
+           "m.dataCompra <= :dataLimite")
+    List<Motor> findMotoresGarantiaPrestesVencer(@Param("dataLimite") LocalDate dataLimite);
+
+    @Query("SELECT m FROM Motor m WHERE m.dataUltimaRevisao IS NULL OR " +
+           "m.dataUltimaRevisao <= :dataLimite")
+    List<Motor> findMotoresPrecisandoRevisao(@Param("dataLimite") LocalDate dataLimite);
     
     // ✅ NOVA CONSULTA COMBINADA PARA TODOS OS CAMPOS
     @Query("SELECT m FROM Motor m WHERE " +

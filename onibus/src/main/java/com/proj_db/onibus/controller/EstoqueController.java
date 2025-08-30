@@ -214,4 +214,40 @@ public class EstoqueController {
                     .body("Erro ao buscar produtos com maior giro: " + e.getMessage());
         }
     }
+    
+    // ✅ BUSCAR ESTOQUE ABAIXO DO MÍNIMO (RE-ADICIONADO)
+    @GetMapping("/abaixo-minimo")
+    public ResponseEntity<?> buscarEstoqueAbaixoMinimo() {
+        try {
+            List<Estoque> estoques = estoqueService.buscarEstoqueAbaixoMinimo();
+            return ResponseEntity.ok(estoques);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao buscar estoque abaixo do mínimo: " + e.getMessage());
+        }
+    }
+    
+    // ✅ BUSCAR ESTOQUE CRÍTICO (RE-ADICIONADO)
+    @GetMapping("/critico")
+    public ResponseEntity<?> buscarEstoqueCritico() {
+        try {
+            List<Estoque> estoques = estoqueService.buscarEstoqueCritico();
+            return ResponseEntity.ok(estoques);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao buscar estoque crítico: " + e.getMessage());
+        }
+    }
+    
+    // ✅ BUSCAR ESTOQUE PARA REABASTECER (RE-ADICIONADO)
+    @GetMapping("/para-reabastecer")
+    public ResponseEntity<?> buscarEstoqueParaReabastecer() {
+        try {
+            List<Estoque> estoques = estoqueService.buscarEstoqueParaReabastecer();
+            return ResponseEntity.ok(estoques);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao buscar estoque para reabastecer: " + e.getMessage());
+        }
+    }
 }

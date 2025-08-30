@@ -1,9 +1,8 @@
-// src/pages/OnibusPage.js
 import React, { useState, useEffect } from 'react';
 import CrudTable from '../components/CrudTable';
 import CrudForm from '../components/CrudForm';
 import SearchBar from '../components/SearchBar';
-import BackButton from '../components/BackButton'; // ✅ Importação corrigida
+import BackButton from '../components/BackButton';
 import { onibusService } from '../services/onibusService';
 import { motorService } from '../services/motorService';
 import { cambioService } from '../services/cambioService';
@@ -11,27 +10,101 @@ import { pneuService } from '../services/pneuService';
 import useSearch from '../hooks/useSearch';
 import { StatusOnibus } from '../constants/onibusEnums';
 import { PosicaoPneu } from '../constants/pneuEnums';
+import { useNavigate } from 'react-router-dom';
+
+const OnibusComponentes = ({ onibus, onCancel, motores, cambios, pneus, onAction }) => {
+  const [motorId, setMotorId] = useState(onibus.motor?.id || '');
+  const [cambioId, setCambioId] = useState(onibus.cambio?.id || '');
+  const [pneuId, setPneuId] = useState('');
+  const [posicaoPneu, setPosicaoPneu] = useState('');
+  
+  const pneusInstalados = onibus.pneus || [];
+  const posicoesOcupadas = pneusInstalados.map(p => p.posicao);
+
+  const posicoesDisponiveis = Object.values(PosicaoPneu).filter(
+    posicao => !posicoesOcupadas.includes(posicao)
+  );
+
+  return (
+    <div className="card my-4">
+      <div className="card-header d-flex justify-content-between align-items-center">
+        <h5 className="card-title mb-0">🛠️ Gerenciar Componentes do Ônibus: {onibus.numeroFrota}</h5>
+        <button onClick={onCancel} className="btn btn-secondary btn-sm">Voltar</button>
+      </div>
+      <div className="card-body">
+        <div className="row g-3">
+          {/* Instalar/Remover Motor */}
+          <div className="col-md-4">
+            <label className="form-label">Motor</label>
+            <div className="input-group">
+              <select className="form-select" value={motorId} onChange={e => setMotorId(e.target.value)} disabled={!!onibus.motor}>
+                <option value="">Selecione um motor</option>
+                {motores.map(m => <option key={m.id} value={m.id}>{m.modelo} (ID: {m.id})</option>)}
+              </select>
+              {onibus.motor ? (
+                <button className="btn btn-danger" onClick={() => onAction('removerMotor', onibus.id, onibus.motor.id)}>Remover</button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => onAction('instalarMotor', onibus.id, motorId)}>Instalar</button>
+              )}
+            </div>
+          </div>
+          {/* Instalar/Remover Câmbio */}
+          <div className="col-md-4">
+            <label className="form-label">Câmbio</label>
+            <div className="input-group">
+              <select className="form-select" value={cambioId} onChange={e => setCambioId(e.target.value)} disabled={!!onibus.cambio}>
+                <option value="">Selecione um câmbio</option>
+                {cambios.map(c => <option key={c.id} value={c.id}>{c.modelo} (ID: {c.id})</option>)}
+              </select>
+              {onibus.cambio ? (
+                <button className="btn btn-danger" onClick={() => onAction('removerCambio', onibus.id, onibus.cambio.id)}>Remover</button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => onAction('instalarCambio', onibus.id, cambioId)}>Instalar</button>
+              )}
+            </div>
+          </div>
+          {/* Instalar/Remover Pneu */}
+          <div className="col-md-4">
+            <label className="form-label">Pneu</label>
+            <div className="input-group">
+              <select className="form-select" value={pneuId} onChange={e => setPneuId(e.target.value)}>
+                <option value="">Selecione um pneu</option>
+                {pneus.map(p => <option key={p.id} value={p.id}>{p.numeroSerie} (ID: {p.id})</option>)}
+              </select>
+              <select className="form-select" value={posicaoPneu} onChange={e => setPosicaoPneu(e.target.value)}>
+                <option value="">Posição</option>
+                {posicoesDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <button className="btn btn-primary" onClick={() => onAction('instalarPneu', onibus.id, pneuId, posicaoPneu)}>Instalar</button>
+              {pneusInstalados.length > 0 && <button className="btn btn-danger" onClick={() => onAction('removerPneu', onibus.id, pneusInstalados[0].id)}>Remover</button>}
+            </div>
+          </div>
+        </div>
+        <h6 className="mt-4">Pneus Instalados</h6>
+        <CrudTable
+          data={onibus.pneus || []}
+          columns={[{key: 'numeroSerie', label: 'Número de Série'}, {key: 'posicao', label: 'Posição'}]}
+        />
+      </div>
+    </div>
+  );
+};
+
 
 const OnibusPage = () => {
-    const { data: onibusList, loading, error, onSearch, refetch } = useSearch(onibusService, {
-        chassi: onibusService.getByChassi,
-        numeroFrota: onibusService.getByNumeroFrota,
-        modelo: onibusService.getByModelo,
-        marca: onibusService.getByMarca,
-        status: onibusService.getByStatus,
-    });
+    const { data: onibusList, loading, error, onSearch, refetch } = useSearch(onibusService);
+    const navigate = useNavigate();
     
     const [editing, setEditing] = useState(false);
     const [currentOnibus, setCurrentOnibus] = useState(null);
     const [showForm, setShowForm] = useState(false);
+    const [showManageComponents, setShowManageComponents] = useState(false);
 
-    // Estados para os dados dos componentes (para os selects)
     const [motoresDisponiveis, setMotoresDisponiveis] = useState([]);
     const [cambiosDisponiveis, setCambiosDisponiveis] = useState([]);
     const [pneusDisponiveis, setPneusDisponiveis] = useState([]);
 
     useEffect(() => {
-        // ✅ Carrega as listas de componentes disponíveis
         const loadComponentes = async () => {
             try {
                 const motores = await motorService.getDisponiveis();
@@ -45,30 +118,42 @@ const OnibusPage = () => {
             }
         };
         loadComponentes();
-    }, [showForm]);
+    }, [showForm, showManageComponents]);
 
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'chassi', label: 'Chassi' },
-        { key: 'modelo', label: 'Modelo' },
+        { key: 'placa', label: 'Placa' },
+        { key: 'modelo', 'label': 'Modelo' },
         { key: 'marca', label: 'Marca' },
-        { key: 'numeroFrota', label: 'Número Frota' },
+        { key: 'numeroFrota', label: 'Frota' },
         { key: 'status', label: 'Status' },
-        { key: 'motor.modelo', label: 'Motor' },
-        { key: 'cambio.modelo', label: 'Câmbio' },
+        { key: 'motor.id', label: 'Motor ID' },
+        { key: 'cambio.id', label: 'Câmbio ID' },
+        { key: 'pneus', label: 'Pneus', format: (pneus) => pneus?.map(p => p.id).join(', ') || 'N/A' },
+        { key: 'dataUltimaReforma', label: 'Última Reforma' },
+        { key: 'codigoFabricacao', label: 'Código Fab.' },
+        { key: 'capacidade', label: 'Capacidade' },
+        { key: 'anoFabricacao', label: 'Ano Fab.' },
     ];
     
     const searchFields = [
-        { name: 'chassi', label: 'Buscar por Chassi', type: 'text' },
-        { name: 'numeroFrota', label: 'Buscar por Número de Frota', type: 'text' },
-        { name: 'modelo', label: 'Buscar por Modelo', type: 'text' },
-        { name: 'marca', label: 'Buscar por Marca', type: 'text' },
-        { name: 'status', label: 'Buscar por Status', type: 'select', 
-          options: Object.values(StatusOnibus).map(s => ({ value: s, label: s })) }
+        { name: 'chassi', label: 'Chassi', type: 'text' },
+        { name: 'numeroFrota', label: 'Número de Frota', type: 'text' },
+        { name: 'modelo', label: 'Modelo', type: 'text' },
+        { name: 'marca', label: 'Marca', type: 'text' },
+        { name: 'status', label: 'Status', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(StatusOnibus).map(s => ({ value: s, label: s }))] },
+        { name: 'codigoFabricacao', label: 'Código Fab.', type: 'text' },
+        { name: 'motorId', label: 'ID Motor', type: 'number' },
+        { name: 'cambioId', label: 'ID Câmbio', type: 'number' },
+        { name: 'pneuId', label: 'ID Pneu', type: 'number' },
+        { name: 'capacidadeMinima', label: 'Capacidade Mínima', type: 'number' }
     ];
 
     const formFields = [
         { name: 'chassi', label: 'Chassi', type: 'text', required: true },
+        { name: 'placa', label: 'Placa', type: 'text', required: true },
         { name: 'modelo', label: 'Modelo', type: 'text', required: true },
         { name: 'marca', label: 'Marca', type: 'text', required: true },
         { name: 'codigoFabricacao', label: 'Código Fabricação', type: 'text', required: true },
@@ -81,9 +166,7 @@ const OnibusPage = () => {
     ];
     
     const handleCreate = () => {
-        setCurrentOnibus({
-            status: 'NOVO'
-        });
+        setCurrentOnibus({ status: 'NOVO' });
         setEditing(false);
         setShowForm(true);
     };
@@ -105,6 +188,11 @@ const OnibusPage = () => {
         }
     };
     
+    const handleManageComponents = (onibus) => {
+        setCurrentOnibus(onibus);
+        setShowManageComponents(true);
+    };
+    
     const handleSubmit = async (formData) => {
         try {
             if (editing) {
@@ -124,6 +212,11 @@ const OnibusPage = () => {
         setCurrentOnibus(null);
     };
 
+    const handleCancelManage = () => {
+        setShowManageComponents(false);
+        setCurrentOnibus(null);
+    };
+
     const handleInputChange = (e) => {
         const { name, value, type } = e.target;
         let processedValue = value;
@@ -138,60 +231,33 @@ const OnibusPage = () => {
         }));
     };
     
-    const handleInstalarMotor = async (onibusId, motorId) => {
-      try {
-        await onibusService.instalarMotor(onibusId, motorId);
-        refetch();
-      } catch (err) {
-        console.error("Erro ao instalar motor:", err);
-      }
-    };
-
-    const handleRemoverMotor = async (onibusId, motorId) => {
-        if (!window.confirm("Deseja realmente remover este motor?")) return;
+    const handleComponentAction = async (action, onibusId, componentId, posicao) => {
         try {
-            await onibusService.removerMotor(onibusId, motorId);
+            switch (action) {
+                case 'instalarMotor':
+                    await onibusService.instalarMotor(onibusId, componentId);
+                    break;
+                case 'removerMotor':
+                    await onibusService.removerMotor(onibusId, componentId);
+                    break;
+                case 'instalarCambio':
+                    await onibusService.instalarCambio(onibusId, componentId);
+                    break;
+                case 'removerCambio':
+                    await onibusService.removerCambio(onibusId, componentId);
+                    break;
+                case 'instalarPneu':
+                    await onibusService.instalarPneu(onibusId, componentId, posicao);
+                    break;
+                case 'removerPneu':
+                    await onibusService.removerPneu(onibusId, componentId);
+                    break;
+                default:
+                    break;
+            }
             refetch();
         } catch (err) {
-            console.error("Erro ao remover motor:", err);
-        }
-    };
-
-    const handleInstalarCambio = async (onibusId, cambioId) => {
-      try {
-        await onibusService.instalarCambio(onibusId, cambioId);
-        refetch();
-      } catch (err) {
-        console.error("Erro ao instalar cambio:", err);
-      }
-    };
-
-    const handleRemoverCambio = async (onibusId, cambioId) => {
-        if (!window.confirm("Deseja realmente remover este cambio?")) return;
-        try {
-            await onibusService.removerCambio(onibusId, cambioId);
-            refetch();
-        } catch (err) {
-            console.error("Erro ao remover cambio:", err);
-        }
-    };
-
-    const handleInstalarPneu = async (onibusId, pneuId, posicao) => {
-      try {
-        await onibusService.instalarPneu(onibusId, pneuId, posicao);
-        refetch();
-      } catch (err) {
-        console.error("Erro ao instalar pneu:", err);
-      }
-    };
-
-    const handleRemoverPneu = async (onibusId, pneuId) => {
-        if (!window.confirm("Deseja realmente remover este pneu?")) return;
-        try {
-            await onibusService.removerPneu(onibusId, pneuId);
-            refetch();
-        } catch (err) {
-            console.error("Erro ao remover pneu:", err);
+            console.error("Erro na ação:", err);
         }
     };
 
@@ -203,7 +269,7 @@ const OnibusPage = () => {
                     <button className="btn btn-primary" onClick={handleCreate} disabled={loading}>
                         {loading ? '⏳' : '➕'} Novo Ônibus
                     </button>
-                    <BackButton /> {/* ✅ Posição do botão de voltar */}
+                    <BackButton />
                 </div>
             </div>
 
@@ -218,6 +284,15 @@ const OnibusPage = () => {
                     onChange={handleInputChange}
                     title={editing ? '✏️ Editar Ônibus' : '➕ Novo Ônibus'}
                     loading={loading}
+                />
+            ) : showManageComponents ? (
+                <OnibusComponentes 
+                    onibus={currentOnibus}
+                    onCancel={handleCancelManage}
+                    motores={motoresDisponiveis}
+                    cambios={cambiosDisponiveis}
+                    pneus={pneusDisponiveis}
+                    onAction={handleComponentAction}
                 />
             ) : (
                 <>
@@ -241,6 +316,7 @@ const OnibusPage = () => {
                             columns={columns}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
+                            onView={handleManageComponents} // ✅ Usando o onView para abrir a gestão de componentes
                         />
                     )}
                 </>

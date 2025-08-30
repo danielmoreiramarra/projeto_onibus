@@ -3,61 +3,62 @@ import React, { useState } from 'react';
 import CrudTable from '../components/CrudTable';
 import CrudForm from '../components/CrudForm';
 import SearchBar from '../components/SearchBar';
-import BackButton from '../components/BackButton'; // ✅ Importando o botão de voltar
+import BackButton from '../components/BackButton';
 import { cambioService } from '../services/cambioService';
 import useSearch from '../hooks/useSearch';
-import { TipoCambio, StatusCambio } from '../constants/cambioEnums'; // ✅ Importando os enums corretos
+import { TipoCambio, StatusCambio } from '../constants/cambioEnums';
+import { useNavigate } from 'react-router-dom';
 
 const CambioPage = () => {
-  const { data: cambios, loading, error, onSearch, refetch } = useSearch(cambioService, {
-    tipo: cambioService.getByTipo,
-    marca: cambioService.getByMarca,
-    modelo: cambioService.getByModelo,
-    status: cambioService.getByStatus,
-    numeroSerie: cambioService.getByNumeroSerie,
-    codigoFabricacao: cambioService.getByCodigoFabricacao
-  });
+  const { data: cambios, loading, error, onSearch, refetch } = useSearch(cambioService);
+  const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
   const [currentCambio, setCurrentCambio] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  
-  // ✅ As colunas permanecem iguais
+
+  // ✅ Colunas para a tabela (adicionando os novos atributos)
   const columns = [
     { key: 'id', label: 'ID' },
     { key: 'tipo', label: 'Tipo' },
     { key: 'numeroMarchas', label: 'Marchas' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
-    { key: 'status', label: 'Status' }
+    { key: 'status', label: 'Status' },
+    { key: 'onibus.id', label: 'Ônibus ID' },
+    { key: 'tipoFluido', label: 'Tipo Fluido' },
+    { key: 'quantidadeFluido', label: 'Qtd. Fluido' }
   ];
 
   // ✅ Campos de busca corrigidos para usar os enums diretamente
   const searchFields = [
-    { name: 'tipo', label: 'Buscar por Tipo', type: 'select', options: Object.values(TipoCambio).map(t => ({ value: t, label: t })) },
+    { name: 'tipo', label: 'Buscar por Tipo', type: 'select', options: [{ value: '', label: 'Todos' }, ...Object.values(TipoCambio).map(t => ({ value: t, label: t }))] },
     { name: 'marca', label: 'Buscar por Marca', type: 'text' },
     { name: 'modelo', label: 'Buscar por Modelo', type: 'text' },
-    { name: 'status', label: 'Buscar por Status', type: 'select', options: Object.values(StatusCambio).map(s => ({ value: s, label: s })) },
-    { name: 'numeroSerie', label: 'Buscar por Número de Série', type: 'text' },
-    { name: 'codigoFabricacao', label: 'Buscar por Código de Fabricação', type: 'text' }
+    { name: 'status', label: 'Buscar por Status', type: 'select', options: [{ value: '', label: 'Todos' }, ...Object.values(StatusCambio).map(s => ({ value: s, label: s }))] },
+    { name: 'numeroSerie', label: 'Número de Série', type: 'text' },
+    { name: 'codigoFabricacao', label: 'Código de Fabricação', type: 'text' },
+    { name: 'numeroMarchas', label: 'Número de Marchas', type: 'number' },
+    { name: 'onibusId', label: 'ID do Ônibus', type: 'number' },
+    { name: 'id', label: 'ID do Câmbio', type: 'number' },
   ];
-  
+
   // ✅ Campos de formulário corrigidos para usar os enums diretamente
   const formFields = [
-  { 
-    name: 'tipo', 
-    label: 'Tipo', 
-    type: 'select',
-    options: Object.values(TipoCambio).map(t => ({ value: t, label: t })),
-    required: true 
-  },
-  { 
-    name: 'status', 
-    label: 'Status', 
-    type: 'select',
-    options: Object.values(StatusCambio).map(s => ({ value: s, label: s })),
-    required: true 
-  },
+    { 
+      name: 'tipo', 
+      label: 'Tipo', 
+      type: 'select',
+      options: Object.values(TipoCambio).map(t => ({ value: t, label: t })),
+      required: true 
+    },
+    { 
+      name: 'status', 
+      label: 'Status', 
+      type: 'select',
+      options: Object.values(StatusCambio).map(s => ({ value: s, label: s })),
+      required: true 
+    },
     { name: 'numeroMarchas', label: 'Número de Marchas', type: 'number', required: true },
     { name: 'marca', label: 'Marca', type: 'text', required: true },
     { name: 'modelo', label: 'Modelo', type: 'text', required: true },
@@ -120,15 +121,12 @@ const CambioPage = () => {
   
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
-    
     let processedValue = value;
-    
     if (type === 'number') {
       processedValue = value === '' ? null : Number(value);
     } else if (type === 'date') {
       processedValue = value || null;
     }
-    
     setCurrentCambio(prev => ({
       ...prev,
       [name]: processedValue

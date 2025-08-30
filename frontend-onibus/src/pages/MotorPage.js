@@ -1,57 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CrudTable from '../components/CrudTable';
 import CrudForm from '../components/CrudForm';
 import SearchBar from '../components/SearchBar';
 import BackButton from '../components/BackButton';
 import { motorService } from '../services/motorService';
 import useSearch from '../hooks/useSearch';
-import { TipoMotor, StatusMotor } from '../constants/motorEnums'; // Certifique-se de que esses enums existem
+import { TipoMotor, StatusMotor } from '../constants/motorEnums';
 
 const MotorPage = () => {
-    const { data: motores, loading, error, onSearch, refetch } = useSearch(motorService, {
-        tipo: motorService.getByTipo,
-        marca: motorService.getByMarca,
-        status: motorService.getByStatus
-    });
+    const { data: motores, loading, error, onSearch, refetch } = useSearch(motorService);
 
     const [editing, setEditing] = useState(false);
     const [currentMotor, setCurrentMotor] = useState(null);
     const [showForm, setShowForm] = useState(false);
 
+    // ✅ Colunas para a tabela (adicionando os novos atributos)
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'tipo', label: 'Tipo' },
         { key: 'marca', label: 'Marca' },
         { key: 'modelo', label: 'Modelo' },
+        { key: 'potencia', label: 'Potência (CV)' },
+        { key: 'cilindrada', label: 'Cilindrada (cc)' },
         { key: 'status', label: 'Status' }
     ];
 
+    // ✅ Campos de busca para o SearchBar
     const searchFields = [
-        { name: 'tipo', label: 'Buscar por Tipo', type: 'select', options: Object.values(TipoMotor).map(t => ({ value: t, label: t })) },
-        { name: 'marca', label: 'Buscar por Marca', type: 'text' },
-        { name: 'status', label: 'Buscar por Status', type: 'select', options: Object.values(StatusMotor).map(s => ({ value: s, label: s })) }
+        { name: 'marca', label: 'Marca', type: 'text' },
+        { name: 'modelo', label: 'Modelo', type: 'text' },
+        { name: 'numeroSerie', label: 'Número de Série', type: 'text' },
+        { name: 'codigoFabricacao', label: 'Código de Fabricação', type: 'text' },
+        { name: 'tipo', label: 'Tipo', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(TipoMotor).map(t => ({ value: t, label: t }))] },
+        { name: 'status', label: 'Status', type: 'select', 
+          options: [{ value: '', label: 'Todos' }, ...Object.values(StatusMotor).map(s => ({ value: s, label: s }))] },
+        { name: 'potenciaMinima', label: 'Potência Mínima', type: 'number' },
+        { name: 'potenciaMaxima', label: 'Potência Máxima', type: 'number' },
+        { name: 'cilindrada', label: 'Cilindrada', type: 'number' },
+        { name: 'onibusId', label: 'ID do Ônibus', type: 'number' },
     ];
 
     const formFields = [
-        {
-            name: 'tipo',
-            label: 'Tipo',
-            type: 'select',
-            options: Object.values(TipoMotor).map(t => ({ value: t, label: t })),
-            required: true
-        },
-        {
-            name: 'status',
-            label: 'Status',
-            type: 'select',
-            options: Object.values(StatusMotor).map(s => ({ value: s, label: s })),
-            required: true
-        },
+        { name: 'tipo', label: 'Tipo', type: 'select',
+          options: Object.values(TipoMotor).map(t => ({ value: t, label: t })), required: true },
+        { name: 'status', label: 'Status', type: 'select',
+          options: Object.values(StatusMotor).map(s => ({ value: s, label: s })), required: true },
         { name: 'marca', label: 'Marca', type: 'text', required: true },
         { name: 'modelo', label: 'Modelo', type: 'text', required: true },
         { name: 'potencia', label: 'Potência (HP)', type: 'number' },
         { name: 'cilindrada', label: 'Cilindrada (cc)', type: 'number' },
-        { name: 'combustivel', label: 'Combustível', type: 'text' },
         { name: 'codigoFabricacao', label: 'Código Fabricação', type: 'text', required: true },
         { name: 'numeroSerie', label: 'Número de Série', type: 'text', required: true },
         { name: 'dataCompra', label: 'Data de Compra', type: 'date', required: true },
@@ -113,7 +111,6 @@ const MotorPage = () => {
                     <button className="btn btn-primary" onClick={handleCreate} disabled={loading}>
                         {loading ? '⏳' : '➕'} Novo Motor
                     </button>
-                    {/* ✅ Adicionando o botão de voltar */}
                     <BackButton />
                 </div>
             </div>

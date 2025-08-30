@@ -22,11 +22,17 @@ public interface CambioRepository extends JpaRepository<Cambio, Long> {
     List<Cambio> findByTipo(TipoCambio tipo);
     List<Cambio> findByNumeroMarchas(Integer numeroMarchas);
     List<Cambio> findByStatus(StatusCambio status);
-    List<Cambio> findCambiosGarantiaPrestesVencer(LocalDate dataLimite);
-    List<Cambio> findCambiosPrecisandoRevisao(LocalDate seisMesesAtras);
-    List<Cambio> findCambiosParaRevisao(LocalDate seisMesesAtras);
     boolean existsByNumeroSerie(String numeroSerie);
     boolean existsByCodigoFabricacao(String codigoFabricacao);
+
+    @Query("SELECT c FROM Cambio c WHERE c.dataCompra IS NOT NULL AND " +
+           "c.dataCompra <= :dataLimite")
+    List<Cambio> findCambiosGarantiaPrestesVencer(@Param("dataLimite") LocalDate dataLimite);
+
+    @Query("SELECT c FROM Cambio c WHERE c.dataUltimaRevisao IS NULL OR " +
+           "c.dataUltimaRevisao <= :dataLimite")
+    List<Cambio> findCambiosPrecisandoRevisao(@Param("dataLimite") LocalDate dataLimite);
+
 
     // ✅ NOVA CONSULTA COMBINADA PARA TODOS OS CAMPOS
     @Query("SELECT c FROM Cambio c WHERE " +

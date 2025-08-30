@@ -6,14 +6,13 @@ import BackButton from '../components/BackButton';
 import { estoqueService } from '../services/estoqueService';
 import { produtoService } from '../services/produtoService';
 import useSearch from '../hooks/useSearch';
-import { Categoria } from '../constants/produtoEnums';
+import { Categoria, UnidadeMedida } from '../constants/produtoEnums';
+import { useNavigate } from 'react-router-dom';
 
 const EstoquePage = () => {
-    const { data: estoque, loading, error, onSearch, refetch } = useSearch(estoqueService, {
-        localizacaoFisica: estoqueService.getByLocalizacao,
-        categoria: estoqueService.getByCategoriaProduto,
-    });
-    
+    const { data: estoque, loading, error, onSearch, refetch } = useSearch(estoqueService);
+    const navigate = useNavigate();
+
     const [produtos, setProdutos] = useState([]);
     const [editing, setEditing] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
@@ -38,17 +37,19 @@ const EstoquePage = () => {
         { key: 'quantidadeAtual', label: 'Qtd. Atual' },
         { key: 'quantidadeReservada', label: 'Qtd. Reservada' },
         { key: 'produto.estoqueMinimo', label: 'Qtd. Mínima' },
-        { key: 'localizacaoFisica', label: 'Localização' }
+        { key: 'localizacaoFisica', label: 'Localização' },
+        { key: 'dataUltimaEntrada', label: 'Última Entrada' },
+        { key: 'dataUltimaSaida', label: 'Última Saída' }
     ];
 
     const searchFields = [
-        { name: 'localizacaoFisica', label: 'Buscar por Localização', type: 'text' },
-        { 
-            name: 'categoria', 
-            label: 'Buscar por Categoria', 
-            type: 'select', 
-            options: Object.values(Categoria).map(c => ({ value: c, label: c }))
-        }
+        { name: 'id', label: 'ID do Estoque', type: 'number' },
+        { name: 'produtoId', label: 'ID do Produto', type: 'number' },
+        { name: 'localizacaoFisica', label: 'Localização Física', type: 'text' },
+        { name: 'quantidadeAtualMin', label: 'Qtd. Atual Mínima', type: 'number' },
+        { name: 'quantidadeAtualMax', label: 'Qtd. Atual Máxima', type: 'number' },
+        { name: 'quantidadeReservadaMin', label: 'Qtd. Reservada Mínima', type: 'number' },
+        { name: 'quantidadeReservadaMax', label: 'Qtd. Reservada Máxima', type: 'number' },
     ];
 
     const formFields = [
@@ -135,19 +136,24 @@ const EstoquePage = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h2>📦 Gerenciamento de Estoque</h2>
-                <BackButton /> {/* ✅ Posição do botão de voltar */}
+                <div className="btn-group">
+                    <button className="btn btn-primary" onClick={handleCreate}>
+                        ➕ Novo Registro
+                    </button>
+                    <BackButton />
+                </div>
             </div>
             
             <div className="mb-3 d-flex justify-content-between align-items-center">
-                <button className="btn btn-primary" onClick={handleCreate}>
-                    ➕ Novo Registro
+                <button className="btn btn-success" onClick={refetch} disabled={loading}>
+                    {loading ? '⏳ Atualizando...' : '🔄 Atualizar Lista'}
                 </button>
                 <div className="btn-group">
-                    <button className="btn btn-success" onClick={refetch} disabled={loading}>
-                        {loading ? '⏳ Atualizando...' : '🔄 Atualizar Lista'}
-                    </button>
-                    <button className="btn btn-warning" onClick={() => alert('Em breve: Relatório de alertas!')}>
+                    <button className="btn btn-warning" onClick={() => navigate('/relatorios')}>
                         ⚠️ Alertas de Estoque
+                    </button>
+                    <button className="btn btn-info" onClick={() => navigate('/relatorios')}>
+                        📊 Relatórios de Giro
                     </button>
                 </div>
             </div>
