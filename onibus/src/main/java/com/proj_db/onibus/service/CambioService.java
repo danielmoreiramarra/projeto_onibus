@@ -1,43 +1,46 @@
 package com.proj_db.onibus.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import com.proj_db.onibus.dto.CambioCreateDTO;
+import com.proj_db.onibus.dto.CambioUpdateDTO;
 import com.proj_db.onibus.model.Cambio;
 
 public interface CambioService {
     
-    Cambio criarCambio(Cambio cambio);
-    Cambio atualizarCambio(Long id, Cambio cambioAtualizado);
-    void excluirCambio(Long id);
-    
-    Optional<Cambio> buscarPorId(Long id);
-    List<Cambio> buscarTodos();
-    Optional<Cambio> buscarPorNumeroSerie(String numeroSerie);
-    Optional<Cambio> buscarPorCodigoFabricacao(String codigoFabricacao);
-    
-    // ✅ Métodos de busca individuais removidos, a busca combinada cobre isso.
-    
-    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
-    List<Cambio> searchCambio(Map<String, String> searchTerms);
-    
+    // --- CRUD Básico ---
+    Cambio save(CambioCreateDTO cambio);
+    Cambio update(Long id, CambioUpdateDTO cambioDetails);
+    void deleteById(Long id);
+    Optional<Cambio> findById(Long id);
+    List<Cambio> findAll();
+
+    // --- Buscas Específicas ---
+    Optional<Cambio> findByNumeroSerie(String numeroSerie);
+    Optional<Cambio> findByCodigoFabricacao(String codigoFabricacao);
+    List<Cambio> search(CambioSearchDTO criteria);
+
+    // --- Lógica de Negócio (Ciclo de Vida) ---
     Cambio enviarParaManutencao(Long cambioId);
     Cambio retornarDeManutencao(Long cambioId);
-    
-    Cambio trocarFluido(Long cambioId, String novoTipoFluido, Double novaQuantidade);
-    Cambio registrarRevisao(Long cambioId);
-    
-    boolean estaEmGarantia(Long cambioId);
-    
-    boolean existeNumeroSerie(String numeroSerie);
-    boolean existeCodigoFabricacao(String codigoFabricacao);
-    
-    List<Cambio> buscarCambiosParaRevisao();
-    List<Cambio> buscarCambiosComGarantiaPrestesVencer();
+    Cambio enviarParaRevisao(Long cambioId);
+    Cambio retornarDaRevisao(Long cambioId);
 
-    List<Object[]> countCambiosPorTipo();
-    List<Object[]> countCambiosPorMarchas();
-    List<Object[]> countCambiosPorStatus();
+    // --- Lógica de OS Preventiva ---
+    void verificarEGerarOsPreventivas(); // Verifica TODOS os câmbios
 
+    // --- Métodos de Relatório (vindos do Repositório) ---
+    List<Object[]> countByTipo();
+    List<Object[]> countByStatus();
+    
+    // DTO (Data Transfer Object) para a busca, aninhado aqui para simplicidade
+    record CambioSearchDTO(
+        String marca,
+        String modelo,
+        String numeroSerie,
+        String tipoFluido,
+        Cambio.TipoCambio tipo,
+        Cambio.StatusCambio status
+    ) {}
 }

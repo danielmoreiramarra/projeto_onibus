@@ -1,48 +1,37 @@
 package com.proj_db.onibus.service;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
 import com.proj_db.onibus.model.Estoque;
+import com.proj_db.onibus.model.Produto;
 
 public interface EstoqueService {
     
-    Estoque criarRegistroEstoque(Estoque estoque);
-    Estoque atualizarEstoque(Long id, Estoque estoqueAtualizado);
+    // --- Métodos de CRUD e Busca ---
+    Optional<Estoque> findById(Long id);
+    Optional<Estoque> findByProduto(Produto produto);
+    Optional<Estoque> findByProdutoId(Long produtoId);
+    List<Estoque> findAll();
+    List<Estoque> search(EstoqueSearchDTO criteria);
     
-    Estoque buscarPorProdutoId(Long produtoId);
-    List<Estoque> buscarTodos();
-    List<Estoque> buscarPorLocalizacao(String localizacao);
-    
-    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
-    List<Estoque> searchEstoque(Map<String, String> searchTerms);
-    
-    List<Estoque> buscarEstoqueAbaixoMinimo();
-    List<Estoque> buscarEstoqueCritico();
-    List<Estoque> buscarEstoqueParaReabastecer();
-    
-    Estoque adicionarEstoque(Long produtoId, Integer quantidade);
-    Estoque reservarEstoque(Long produtoId, Integer quantidade);
-    Estoque consumirEstoque(Long produtoId, Integer quantidade);
-    Estoque liberarReserva(Long produtoId, Integer quantidade);
-    
-    Integer consultarQuantidadeDisponivel(Long produtoId);
-    Integer consultarQuantidadeReservada(Long produtoId);
-    Integer consultarQuantidadeTotal(Long produtoId);
-    
-    boolean verificarDisponibilidade(Long produtoId, Integer quantidade);
-    boolean verificarEstoqueMinimo(Long produtoId);
-    
-    Double calcularValorTotalEstoque();
+    // --- Ações de Negócio ---
+    Estoque adicionar(Long produtoId, Double quantidade);
+    boolean reservar(Long produtoId, Double quantidade);
+    void confirmarConsumoDeReserva(Long produtoId, Double quantidade);
+    void liberarReserva(Long produtoId, Double quantidade);
+
+    // --- Relatórios e Alertas ---
+    List<Estoque> findEstoqueAbaixoDoMinimo();
+    Double calcularValorTotalInventario();
     List<Object[]> calcularValorTotalPorCategoria();
-    List<Object[]> buscarProdutosComMaiorGiro();
-    boolean precisaReabastecer(Long produtoId);
-    boolean consumirReserva(Long produtoId, Integer quantidade);
-    List<Estoque> getAlertasEstoque();
 
-    // ✅ NOVOS MÉTODOS DE RELATÓRIO
-    List<Object[]> findGiroPorCategoria();
-    List<Object[]> findGiroPorMarca();
-    List<Object[]> findGiroPorLocal();
-
+    // DTO para a busca
+    record EstoqueSearchDTO(
+        Long produtoId,
+        String nomeProduto,
+        String marcaProduto,
+        Produto.Categoria categoriaProduto,
+        String localizacao
+    ) {}
 }

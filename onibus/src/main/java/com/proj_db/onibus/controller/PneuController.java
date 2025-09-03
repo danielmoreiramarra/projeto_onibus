@@ -1,8 +1,7 @@
 package com.proj_db.onibus.controller;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.proj_db.onibus.dto.PneuCreateDTO;
+import com.proj_db.onibus.dto.PneuResponseDTO;
+import com.proj_db.onibus.dto.PneuUpdateDTO;
 import com.proj_db.onibus.model.Pneu;
 import com.proj_db.onibus.service.PneuService;
 
@@ -32,155 +34,84 @@ public class PneuController {
     @Autowired
     private PneuService pneuService;
 
-    // ✅ CRIAR NOVO PNEU
+    // --- Endpoints CRUD ---
+
     @PostMapping
-    public ResponseEntity<?> criarPneu(@Valid @RequestBody Pneu pneu) {
-        try {
-            Pneu novoPneu = pneuService.criarPneu(pneu);
-            return ResponseEntity.status(HttpStatus.CREATED).body(novoPneu);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro interno ao criar pneu: " + e.getMessage());
-        }
+    public ResponseEntity<PneuResponseDTO> create(@Valid @RequestBody PneuCreateDTO dto) {
+        Pneu pneuSalvo = pneuService.save(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new PneuResponseDTO(pneuSalvo));
     }
 
-    // ✅ LISTAR TODOS OS PNEUS
-    @GetMapping
-    public ResponseEntity<List<Pneu>> listarTodos() {
-        try {
-            List<Pneu> pneus = pneuService.buscarTodos();
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    // ✅ BUSCAR PNEU POR ID
-    @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
-        try {
-            Optional<Pneu> pneu = pneuService.buscarPorId(id);
-            return pneu.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar pneu: " + e.getMessage());
-        }
-    }
-
-    // ✅ ATUALIZAR PNEU
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizarPneu(
-            @PathVariable Long id, 
-            @Valid @RequestBody Pneu pneuAtualizado) {
-        try {
-            Pneu pneu = pneuService.atualizarPneu(id, pneuAtualizado);
-            return ResponseEntity.ok(pneu);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao atualizar pneu: " + e.getMessage());
-        }
+    public ResponseEntity<PneuResponseDTO> update(@PathVariable Long id, @Valid @RequestBody PneuUpdateDTO dto) {
+        Pneu pneuAtualizado = pneuService.update(id, dto);
+        return ResponseEntity.ok(new PneuResponseDTO(pneuAtualizado));
     }
 
-    // ✅ EXCLUIR PNEU
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> excluirPneu(@PathVariable Long id) {
-        try {
-            pneuService.excluirPneu(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao excluir pneu: " + e.getMessage());
-        }
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        pneuService.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
-    // ✅ NOVO ENDPOINT DE BUSCA COMBINADA
+    // --- Endpoints de Consulta ---
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PneuResponseDTO> findById(@PathVariable Long id) {
+        return pneuService.findById(id)
+                .map(PneuResponseDTO::new)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PneuResponseDTO>> findAll() {
+        List<PneuResponseDTO> dtos = pneuService.findAll().stream()
+                .map(PneuResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
     @GetMapping("/search")
-    public ResponseEntity<?> searchPneu(@RequestParam Map<String, String> searchTerms) {
-        try {
-            List<Pneu> pneus = pneuService.searchPneu(searchTerms);
-            return ResponseEntity.ok(pneus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao realizar a busca: " + e.getMessage());
-        }
+    public ResponseEntity<List<PneuResponseDTO>> search(
+            @RequestParam(required = false) String marca,
+            @RequestParam(required = false) String medida,
+            @RequestParam(required = false) String numeroSerie,
+            @RequestParam(required = false) Pneu.StatusPneu status,
+            @RequestParam(required = false) Double kmRodadosMin,
+            @RequestParam(required = false) Double kmRodadosMax,
+            @RequestParam(required = false) Long onibusId
+    ) {
+        PneuService.PneuSearchDTO criteria = new PneuService.PneuSearchDTO(marca, medida, numeroSerie, status, kmRodadosMin, kmRodadosMax, onibusId);
+        List<PneuResponseDTO> dtos = pneuService.search(criteria).stream()
+                .map(PneuResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
-    // ✅ ENVIAR PARA MANUTENÇÃO
+    // --- Endpoints de Ações de Negócio (Ciclo de Vida) ---
+
     @PatchMapping("/{id}/enviar-manutencao")
-    public ResponseEntity<?> enviarParaManutencao(@PathVariable Long id) {
-        try {
-            Pneu pneu = pneuService.enviarParaManutencao(id);
-            return ResponseEntity.ok(pneu);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao enviar para manutenção: " + e.getMessage());
-        }
+    public ResponseEntity<PneuResponseDTO> enviarParaManutencao(@PathVariable Long id) {
+        Pneu pneu = pneuService.enviarParaManutencao(id);
+        return ResponseEntity.ok(new PneuResponseDTO(pneu));
     }
 
-    // ✅ RETORNAR DA MANUTENÇÃO
     @PatchMapping("/{id}/retornar-manutencao")
-    public ResponseEntity<?> retornarDeManutencao(@PathVariable Long id) {
-        try {
-            Pneu pneu = pneuService.retornarDeManutencao(id);
-            return ResponseEntity.ok(pneu);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao retornar da manutenção: " + e.getMessage());
-        }
+    public ResponseEntity<PneuResponseDTO> retornarDeManutencao(@PathVariable Long id) {
+        Pneu pneu = pneuService.retornarDeManutencao(id);
+        return ResponseEntity.ok(new PneuResponseDTO(pneu));
     }
 
-    // ✅ DESCARTAR PNEU
-    @PatchMapping("/{id}/descartar")
-    public ResponseEntity<?> descartarPneu(@PathVariable Long id) {
-        try {
-            Pneu pneu = pneuService.descartarPneu(id);
-            return ResponseEntity.ok(pneu);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao descartar pneu: " + e.getMessage());
-        }
+    @PatchMapping("/{id}/enviar-reforma")
+    public ResponseEntity<PneuResponseDTO> enviarParaReforma(@PathVariable Long id) {
+        Pneu pneu = pneuService.enviarParaReforma(id);
+        return ResponseEntity.ok(new PneuResponseDTO(pneu));
     }
 
-    // ✅ REGISTRAR KM RODADOS (retorna o objeto atualizado)
-    @PatchMapping("/{id}/registrar-km")
-    public ResponseEntity<?> registrarKmRodados(
-            @PathVariable Long id,
-            @RequestParam Integer kmAdicionais) {
-        try {
-            Pneu pneu = pneuService.registrarKmRodados(id, kmAdicionais);
-            return ResponseEntity.ok(pneu);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao registrar KM: " + e.getMessage());
-        }
-    }
-
-    // ✅ VERIFICAR SE PRECISA DE TROCA
-    @GetMapping("/{id}/precisa-troca")
-    public ResponseEntity<?> precisaTroca(@PathVariable Long id) {
-        try {
-            boolean precisaTroca = pneuService.precisaTroca(id);
-            return ResponseEntity.ok(precisaTroca);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao verificar necessidade de troca: " + e.getMessage());
-        }
+    @PatchMapping("/{id}/retornar-reforma")
+    public ResponseEntity<PneuResponseDTO> retornarDeReforma(@PathVariable Long id) {
+        Pneu pneu = pneuService.retornarDeReforma(id);
+        return ResponseEntity.ok(new PneuResponseDTO(pneu));
     }
 }

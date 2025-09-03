@@ -1,242 +1,173 @@
 package com.proj_db.onibus.service;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.proj_db.onibus.dto.ProdutoCreateDTO;
+import com.proj_db.onibus.dto.ProdutoUpdateDTO;
 import com.proj_db.onibus.model.Estoque;
 import com.proj_db.onibus.model.Produto;
-import com.proj_db.onibus.model.Produto.Categoria;
-import com.proj_db.onibus.model.Produto.StatusProduto;
-import com.proj_db.onibus.model.Produto.UnidadeMedida;
+import com.proj_db.onibus.repository.EstoqueRepository;
 import com.proj_db.onibus.repository.ProdutoRepository;
 
 @Service
 @Transactional
 public class ProdutoImpl implements ProdutoService {
 
-    @Autowired
-    private ProdutoRepository produtoRepository;
-    @Autowired
-    private EstoqueService estoqueService;
+    @Autowired private ProdutoRepository produtoRepository;
+    @Autowired private EstoqueRepository estoqueRepository;
+
+    // --- CRUD e Lógica de Negócio ---
 
     @Override
-    public Produto criarProduto(Produto produto) {
-        if (existeCodigoInterno(produto.getCodigoInterno())) {
-            throw new RuntimeException("Já existe um produto com este código interno: " + produto.getCodigoInterno());
+    public Produto save(ProdutoCreateDTO dto) {
+        // 1. Validações para garantir que os códigos são únicos
+        produtoRepository.findByCodigoInterno(dto.getCodigoInterno()).ifPresent(p -> {
+            throw new IllegalArgumentException("Já existe um produto com o código interno: " + dto.getCodigoInterno());
+        });
+        if (dto.getCodigoBarras() != null && !dto.getCodigoBarras().isEmpty()) {
+            produtoRepository.findByCodigoBarras(dto.getCodigoBarras()).ifPresent(p -> {
+                throw new IllegalArgumentException("Já existe um produto com o código de barras: " + dto.getCodigoBarras());
+            });
+        }
+
+        // 2. Mapeia o DTO para a Entidade, usando o construtor que definimos
+        Produto novoProduto = new Produto(
+            dto.getNome(),
+            dto.getMarca(),
+            dto.getUnidadeMedida(),
+            dto.getCodigoInterno(),
+            dto.getCategoria()
+        );
+        // Define os campos restantes
+        novoProduto.setDescricao(dto.getDescricao());
+        novoProduto.setCodigoBarras(dto.getCodigoBarras());
+        novoProduto.setEstoqueMinimo(dto.getEstoqueMinimo());
+        novoProduto.setLocalizacao(dto.getLocalizacao());
+        
+        // 3. Usa o método do modelo para definir o preço inicial e criar o primeiro registro no histórico
+        novoProduto.atualizarPreco(dto.getPrecoInicial());
+
+        // 4. Salva o novo produto
+        Produto produtoSalvo = produtoRepository.save(novoProduto);
+        
+        // 5. Cria atomicamente um registro de estoque correspondente
+        Estoque novoEstoque = new Estoque();
+        novoEstoque.setProduto(produtoSalvo);
+        novoEstoque.setLocalizacaoFisica("A DEFINIR"); // Localização padrão
+        estoqueRepository.save(novoEstoque);
+        
+        return produtoSalvo;
+    }
+    @Override
+    public Produto update(Long id, ProdutoUpdateDTO produtoDetails) {
+        Produto produtoExistente = findById(id)
+            .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
+
+        // Valida código interno se foi alterado
+        if (!produtoExistente.getCodigoInterno().equals(produtoDetails.getCodigoInterno())) {
+            produtoRepository.findByCodigoInterno(produtoDetails.getCodigoInterno()).ifPresent(outro -> {
+                throw new IllegalArgumentException("O código interno '" + produtoDetails.getCodigoInterno() + "' já está em uso.");
+            });
         }
         
-        if (produto.getCodigoBarras() != null && existeCodigoBarras(produto.getCodigoBarras())) {
-            throw new RuntimeException("Já existe um produto com este código de barras: " + produto.getCodigoBarras());
+        // Valida código de barras se foi alterado
+        if (produtoDetails.getCodigoBarras() != null && !produtoDetails.getCodigoBarras().isEmpty() && !produtoDetails.getCodigoBarras().equals(produtoExistente.getCodigoBarras())) {
+             produtoRepository.findByCodigoBarras(produtoDetails.getCodigoBarras()).ifPresent(outro -> {
+                throw new IllegalArgumentException("O código de barras '" + produtoDetails.getCodigoBarras() + "' já está em uso.");
+            });
         }
+
+        // Atualiza os atributos do produto
+        produtoExistente.setNome(produtoDetails.getNome());
+        produtoExistente.setMarca(produtoDetails.getMarca());
+        produtoExistente.setDescricao(produtoDetails.getDescricao());
+        produtoExistente.setCategoria(produtoDetails.getCategoria());
+        produtoExistente.setUnidadeMedida(produtoDetails.getUnidadeMedida());
+        produtoExistente.setEstoqueMinimo(produtoDetails.getEstoqueMinimo());
+        produtoExistente.setLocalizacao(produtoDetails.getLocalizacao());
+        produtoExistente.setCodigoBarras(produtoDetails.getCodigoBarras());
         
-        if (produto.getStatus() == null) {
-            produto.setStatus(StatusProduto.ATIVO);
-        }
-        
-        if (produto.getEstoqueMinimo() == null) {
-            produto.setEstoqueMinimo(5);
-        }
-        
+        return produtoRepository.save(produtoExistente);
+    }
+    
+    @Override
+    public Produto updatePrice(Long id, Double novoPreco) {
+        Produto produto = findById(id).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
+        // Usa o método do modelo para atualizar o preço, garantindo que o histórico seja criado
+        produto.atualizarPreco(novoPreco);
         return produtoRepository.save(produto);
     }
 
     @Override
-    public Produto atualizarProduto(Long id, Produto produtoAtualizado) {
-        Produto produtoExistente = buscarProdutoPorId(id);
-        
-        if (!produtoExistente.getCodigoInterno().equals(produtoAtualizado.getCodigoInterno()) && 
-            existeCodigoInterno(produtoAtualizado.getCodigoInterno())) {
-            throw new RuntimeException("Já existe um produto com este código interno: " + produtoAtualizado.getCodigoInterno());
-        }
-        
-        if (produtoAtualizado.getCodigoBarras() != null && 
-            !produtoAtualizado.getCodigoBarras().equals(produtoExistente.getCodigoBarras()) && 
-            existeCodigoBarras(produtoAtualizado.getCodigoBarras())) {
-            throw new RuntimeException("Já existe um produto com este código de barras: " + produtoAtualizado.getCodigoBarras());
-        }
-        
-        produtoExistente.setNome(produtoAtualizado.getNome());
-        produtoExistente.setMarca(produtoAtualizado.getMarca());
-        produtoExistente.setDescricao(produtoAtualizado.getDescricao());
-        produtoExistente.setCategoria(produtoAtualizado.getCategoria());
-        produtoExistente.setUnidadeMedida(produtoAtualizado.getUnidadeMedida());
-        produtoExistente.setPrecoUnitario(produtoAtualizado.getPrecoUnitario());
-        produtoExistente.setEstoqueMinimo(produtoAtualizado.getEstoqueMinimo());
-        produtoExistente.setLocalizacao(produtoAtualizado.getLocalizacao());
-        
-        return produtoRepository.save(produtoExistente);
-    }
+    public void archiveById(Long id) {
+        Produto produto = findById(id).orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
 
-    @Override
-    public void excluirProduto(Long id) {
-        Produto produto = buscarProdutoPorId(id);
-        
-        if (produtoEstaEmUso(id)) {
-            throw new RuntimeException("Não é possível excluir produto que está em uso");
+        // Verifica no estoque se o produto pode ser inativado
+        Estoque estoque = estoqueRepository.findByProdutoId(id).orElse(null);
+        if (estoque != null && (estoque.getQuantidadeAtual() > 0 || estoque.getQuantidadeReservada() > 0)) {
+            throw new IllegalStateException("Não é possível inativar um produto com saldo ("+estoque.getQuantidadeAtual()+") ou reservas ("+estoque.getQuantidadeReservada()+") em estoque.");
         }
         
-        produto.setStatus(StatusProduto.INATIVO);
+        produto.setStatus(Produto.StatusProduto.INATIVO);
         produtoRepository.save(produto);
     }
 
+    // --- Buscas ---
+
     @Override
-    public Optional<Produto> buscarPorId(Long id) {
+    @Transactional(readOnly = true)
+    public Optional<Produto> findById(Long id) {
         return produtoRepository.findById(id);
     }
 
     @Override
-    public List<Produto> buscarTodos() {
+    @Transactional(readOnly = true)
+    public List<Produto> findAll() {
         return produtoRepository.findAll();
     }
 
     @Override
-    public Optional<Produto> buscarPorCodigoInterno(String codigoInterno) {
+    @Transactional(readOnly = true)
+    public Optional<Produto> findByCodigoInterno(String codigoInterno) {
         return produtoRepository.findByCodigoInterno(codigoInterno);
     }
 
     @Override
-    public Optional<Produto> buscarPorCodigoBarras(String codigoBarras) {
-        return produtoRepository.findByCodigoBarras(codigoBarras);
+    @Transactional(readOnly = true)
+    public List<Produto> search(ProdutoSearchDTO criteria) {
+        return produtoRepository.findAll(ProdutoSpecification.searchByCriteria(criteria));
     }
+
+    // --- Lógica de Negócio Adicional ---
+    
+    @Override
+    public String gerarProximoCodigoInterno() {
+        Integer proximoNumero = produtoRepository.findProximoCodigoInterno().orElse(1);
+        return "PROD-" + String.format("%04d", proximoNumero);
+    }
+
+    // --- Métodos de Relatório ---
 
     @Override
-    public List<Produto> buscarPorStatus(StatusProduto status) {
-        return produtoRepository.findByStatus(status);
-    }
-
-    @Override
-    public List<Produto> buscarPorMarca(String marca) {
-        return produtoRepository.findByMarca(marca);
-    }
-
-    @Override
-    public List<Produto> buscarPorCategoria(Categoria categoria) {
-        return produtoRepository.findByCategoria(categoria);
-    }
-
-    @Override
-    public List<Produto> buscarPorUnidadeMedida(UnidadeMedida unidadeMedida) {
-        return produtoRepository.findByUnidadeMedida(unidadeMedida);
-    }
-
-    @Override
-    public List<Produto> buscarPorNome(String nome) {
-        return produtoRepository.findByNomeContainingIgnoreCase(nome);
-    }
-
-    @Override
-    public List<Produto> searchProduto(Map<String, String> searchTerms) {
-        Long id = searchTerms.containsKey("id") && !searchTerms.get("id").isEmpty() ? Long.valueOf(searchTerms.get("id")) : null;
-        String nome = searchTerms.get("nome");
-        String marca = searchTerms.get("marca");
-        String codigoBarras = searchTerms.get("codigoBarras");
-        String codigoInterno = searchTerms.get("codigoInterno");
-        String descricao = searchTerms.get("descricao");
-        Double precoUnitarioMin = searchTerms.containsKey("precoUnitarioMin") && !searchTerms.get("precoUnitarioMin").isEmpty() ? Double.valueOf(searchTerms.get("precoUnitarioMin")) : null;
-        Double precoUnitarioMax = searchTerms.containsKey("precoUnitarioMax") && !searchTerms.get("precoUnitarioMax").isEmpty() ? Double.valueOf(searchTerms.get("precoUnitarioMax")) : null;
-        String localizacao = searchTerms.get("localizacao");
-        Categoria categoria = searchTerms.containsKey("categoria") && !searchTerms.get("categoria").isEmpty() ? Categoria.valueOf(searchTerms.get("categoria")) : null;
-        StatusProduto status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusProduto.valueOf(searchTerms.get("status")) : null;
-        UnidadeMedida unidadeMedida = searchTerms.containsKey("unidadeMedida") && !searchTerms.get("unidadeMedida").isEmpty() ? UnidadeMedida.valueOf(searchTerms.get("unidadeMedida")) : null;
-
-        return produtoRepository.searchProduto(id, nome, marca, codigoBarras, codigoInterno, descricao, precoUnitarioMin, precoUnitarioMax, localizacao, categoria, status, unidadeMedida);
-    }
-
-    public List<Produto> buscarPorIntervaloPreco(Double precoMinimo, Double precoMaximo) {
-        return produtoRepository.findByPrecoUnitarioBetween(precoMinimo, precoMaximo);
-    }
-
-    @Override
-    public List<Produto> buscarProdutosAtivos() {
-        return produtoRepository.findByStatus(StatusProduto.ATIVO);
-    }
-
-    @Override
-    public List<Produto> buscarProdutosComEstoqueAbaixoMinimo() {
+    @Transactional(readOnly = true)
+    public List<Produto> findProdutosComEstoqueAbaixoMinimo() {
         return produtoRepository.findProdutosComEstoqueAbaixoMinimo();
     }
 
     @Override
-    public List<Produto> buscarProdutosNuncaUtilizados() {
-        return produtoRepository.findProdutosNuncaUtilizados();
-    }
-
-    @Override
-    public List<Produto> buscarProdutosSemMovimento() {
-        LocalDate seisMesesAtras = LocalDate.now().minusMonths(6);
-        return produtoRepository.findProdutosSemMovimento(seisMesesAtras);
-    }
-
-    @Override
-    public boolean existeCodigoInterno(String codigoInterno) {
-        return produtoRepository.existsByCodigoInterno(codigoInterno);
-    }
-
-    @Override
-    public boolean existeCodigoBarras(String codigoBarras) {
-        return produtoRepository.existsByCodigoBarras(codigoBarras);
-    }
-
-    @Override
-    public String gerarProximoCodigoInterno() {
-        Integer proximoNumero = produtoRepository.findProximoCodigoInterno();
-        return "PROD-" + String.format("%04d", proximoNumero);
-    }
-
-    @Override
-    public List<Object[]> buscarProdutosMaisUtilizados() {
+    @Transactional(readOnly = true)
+    public List<Object[]> findProdutosMaisUtilizados() {
         return produtoRepository.findProdutosMaisUtilizados();
     }
 
     @Override
-    public List<Object[]> buscarProdutosPorGiro() {
-        return produtoRepository.findProdutosPorGiro();
-    }
-
-    // ✅ IMPLEMENTAÇÃO DOS MÉTODOS DE RELATÓRIO FALTANTES
-    @Override
-    public List<Object[]> buscarEstatisticasPorCategoria() {
-        return produtoRepository.countProdutosPorCategoria();
-    }
-
-    @Override
-    public List<Object[]> countProdutosPorStatus() {
-        return produtoRepository.countProdutosPorStatus();
-    }
-
-    @Override
-    public List<Object[]> countProdutosPorUnidadeMedida() {
-        return produtoRepository.countProdutosPorUnidadeMedida();
-    }
-
-    @Override
-    public List<Object[]> avgPrecoPorCategoria() {
-        return produtoRepository.avgPrecoPorCategoria();
-    }
-
-    @Override
-    public List<Object[]> findProdutosComMaiorValorEstoque() {
-        return produtoRepository.findProdutosComMaiorValorEstoque();
-    }
-
-    @Override
-    public List<Object[]> findProdutosMelhorCustoBeneficio() {
-        return produtoRepository.findProdutosMelhorCustoBeneficio();
-    }
-    
-    private Produto buscarProdutoPorId(Long id) {
-        return produtoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + id));
-    }
-
-    private boolean produtoEstaEmUso(Long produtoId) {
-        Estoque estoque = estoqueService.buscarPorProdutoId(produtoId);
-        return estoque.getQuantidadeAtual() > 0 || estoque.getQuantidadeReservada() > 0;
+    @Transactional(readOnly = true)
+    public List<Object[]> countByCategoria() {
+        return produtoRepository.countByCategoria();
     }
 }

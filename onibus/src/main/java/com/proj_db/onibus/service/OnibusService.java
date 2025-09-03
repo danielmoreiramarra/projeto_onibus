@@ -1,63 +1,64 @@
 package com.proj_db.onibus.service;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import com.proj_db.onibus.dto.OnibusCreateDTO;
+import com.proj_db.onibus.dto.OnibusUpdateDTO;
 import com.proj_db.onibus.model.Onibus;
-import com.proj_db.onibus.model.Onibus.StatusOnibus;
 import com.proj_db.onibus.model.Pneu;
 
 public interface OnibusService {
     
-    // Métodos de negócio para criação e gestão
-    Onibus criarOnibus(Onibus onibus);
-    Onibus atualizarOnibus(Long id, Onibus onibusAtualizado);
-    void excluirOnibus(Long id);
-    
-    // Métodos de consulta com regras de negócio
-    Optional<Onibus> buscarPorId(Long id);
-    List<Onibus> buscarTodos();
-    Optional<Onibus> buscarPorChassi(String chassi);
-    Optional<Onibus> buscarPorCodigoFabricacao(String codigoFabricacao);
-    Optional<Onibus> buscarPorNumeroFrota(String numeroFrota);
-    
-    // Método de busca combinada
-    List<Onibus> searchOnibus(Map<String, String> searchTerms);
+    // --- CRUD Básico ---
+    Onibus save(OnibusCreateDTO onibus);
+    Onibus update(Long id, OnibusUpdateDTO onibusDetails);
+    void deleteById(Long id);
+    Optional<Onibus> findById(Long id);
+    List<Onibus> findAll();
 
-    // Métodos específicos de negócio
-    List<Onibus> buscarPorStatus(StatusOnibus status);
-    List<Onibus> buscarDisponiveis();
-    List<Onibus> buscarNovos();
-    List<Onibus> buscarEmManutencao();
-    List<Onibus> buscarPorMarca(String marca);
-    List<Onibus> buscarPorModelo(String modelo);
-    List<Onibus> buscarPorAnoFabricacao(Integer anoFabricacao);
-    List<Onibus> buscarPorCapacidadeMinima(Integer capacidadeMinima);
-    
-    // Métodos de gestão de status
-    Onibus colocarEmManutencao(Long id);
-    Onibus retirarDeManutencao(Long id);
-    Onibus aposentarOnibus(Long id);
-    Onibus venderOnibus(Long id);
-    
-    // Métodos de verificação e validação
-    boolean verificarDisponibilidade(Long onibusId, LocalDate dataInicio, LocalDate dataFim);
-    boolean existeChassi(String chassi);
-    boolean existeCodigoFabricacao(String codigoFabricacao);
-    boolean existeNumeroFrota(String numeroFrota);
-    
-    // Métodos de relatório e estatísticas
-    List<Object[]> estatisticasPorStatus();
-    List<Object[]> estatisticasPorMarca();
-    List<Object[]> estatisticasPorAno();
+    // --- Buscas Específicas ---
+    Optional<Onibus> findByChassi(String chassi);
+    List<Onibus> search(OnibusSearchDTO criteria);
 
-    // ✅ NOVOS MÉTODOS para gerenciar os componentes (motor, cambio, pneus)
+    // --- Lógica de Negócio (Ciclo de Vida do Ônibus) ---
+    Onibus colocarEmOperacao(Long onibusId);
+    Onibus retirarDeOperacao(Long onibusId);
+    Onibus enviarParaManutencao(Long onibusId);
+    Onibus retornarDaManutencao(Long onibusId);
+    Onibus enviarParaReforma(Long onibusId);
+    Onibus retornarDaReforma(Long onibusId);
+    Onibus aposentar(Long onibusId);
+    Onibus vender(Long onibusId);
+
+    // --- Lógica de Operação ---
+    Onibus registrarViagem(Long onibusId, Double kmPercorridos);
+
+    // --- Gerenciamento de Componentes ---
     Onibus instalarMotor(Long onibusId, Long motorId);
-    Onibus removerMotor(Long onibusId, Long motorId);
+    Onibus removerMotor(Long onibusId);
     Onibus instalarCambio(Long onibusId, Long cambioId);
-    Onibus removerCambio(Long onibusId, Long cambioId);
+    Onibus removerCambio(Long onibusId);
     Onibus instalarPneu(Long onibusId, Long pneuId, Pneu.PosicaoPneu posicao);
-    Onibus removerPneu(Long onibusId, Long pneuId);
+    Onibus removerPneu(Long onibusId, Pneu.PosicaoPneu posicao);
+
+    // --- Lógica de OS Preventiva ---
+    void verificarEGerarOsPreventivas();
+
+    // --- Métodos de Relatório ---
+    List<Object[]> countByStatus();
+    List<Object[]> countByMarca();
+    
+    // DTO (Data Transfer Object) para a busca
+    record OnibusSearchDTO(
+        String chassi,
+        String placa,
+        String numeroFrota,
+        String marca,
+        String modelo,
+        Onibus.StatusOnibus status,
+        Long motorId,
+        Long cambioId,
+        Long pneuId
+    ) {}
 }

@@ -1,397 +1,303 @@
 package com.proj_db.onibus.service;
 
-import java.time.LocalDate;
+import java.time.LocalDate; // Importa todos os modelos
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Autowired; // Importa todos os repositórios
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.proj_db.onibus.dto.OnibusCreateDTO;
+import com.proj_db.onibus.dto.OnibusUpdateDTO;
 import com.proj_db.onibus.model.Cambio;
 import com.proj_db.onibus.model.Motor;
 import com.proj_db.onibus.model.Onibus;
-import com.proj_db.onibus.model.Onibus.StatusOnibus;
+import com.proj_db.onibus.model.OrdemServico;
+import com.proj_db.onibus.model.OrdemServico.StatusOrdemServico;
+import com.proj_db.onibus.model.OrdemServico.TipoOrdemServico;
 import com.proj_db.onibus.model.Pneu;
 import com.proj_db.onibus.repository.CambioRepository;
 import com.proj_db.onibus.repository.MotorRepository;
 import com.proj_db.onibus.repository.OnibusRepository;
+import com.proj_db.onibus.repository.OrdemServicoRepository;
 import com.proj_db.onibus.repository.PneuRepository;
 
 @Service
 @Transactional
 public class OnibusImpl implements OnibusService {
 
-    @Autowired
-    private OnibusRepository onibusRepository;
-    @Autowired
-    private MotorRepository motorRepository;
-    @Autowired
-    private CambioRepository cambioRepository;
-    @Autowired
-    private PneuRepository pneuRepository;
+    @Autowired private OnibusRepository onibusRepository;
+    @Autowired private MotorRepository motorRepository;
+    @Autowired private CambioRepository cambioRepository;
+    @Autowired private PneuRepository pneuRepository;
+    @Autowired private OrdemServicoRepository osRepository;
+
+    // --- CRUD Básico ---
 
     @Override
-    public Onibus criarOnibus(Onibus onibus) {
-        if (existeChassi(onibus.getChassi())) {
-            throw new RuntimeException("Já existe um ônibus com este chassi: " + onibus.getChassi());
-        }
+    public Onibus save(OnibusCreateDTO onibusDetails) {
+        // 1. Validações para garantir que os identificadores são únicos
+        onibusRepository.findByChassi(onibusDetails.getChassi()).ifPresent(o -> {
+            throw new IllegalArgumentException("Já existe um ônibus com este chassi: " + onibusDetails.getChassi());
+        });
+        onibusRepository.findByPlaca(onibusDetails.getPlaca()).ifPresent(o -> {
+            throw new IllegalArgumentException("Já existe um ônibus com esta placa: " + onibusDetails.getPlaca());
+        });
+        onibusRepository.findByNumeroFrota(onibusDetails.getNumeroFrota()).ifPresent(o -> {
+            throw new IllegalArgumentException("Já existe um ônibus com este número de frota: " + onibusDetails.getNumeroFrota());
+        });
+
+        // 2. Converte o DTO para a Entidade Onibus
+        Onibus novoOnibus = new Onibus();
+        novoOnibus.setChassi(onibusDetails.getChassi());
+        novoOnibus.setPlaca(onibusDetails.getPlaca());
+        novoOnibus.setModelo(onibusDetails.getModelo());
+        novoOnibus.setMarca(onibusDetails.getMarca());
+        novoOnibus.setCodigoFabricacao(onibusDetails.getCodigoFabricacao());
+        novoOnibus.setCapacidade(onibusDetails.getCapacidade());
+        novoOnibus.setAnoFabricacao(onibusDetails.getAnoFabricacao());
+        novoOnibus.setNumeroFrota(onibusDetails.getNumeroFrota());
+        novoOnibus.setDataCompra(onibusDetails.getDataCompra());
+
+        // Status e quilometragem já são definidos com valores padrão no modelo
+
+        // 3. Salva a nova entidade no banco
+        return onibusRepository.save(novoOnibus);
+    }
+
+    @Override
+    public Onibus update(Long id, OnibusUpdateDTO onibusDetails) {
+        Onibus onibus = findById(id).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
         
-        if (existeCodigoFabricacao(onibus.getCodigoFabricacao())) {
-            throw new RuntimeException("Já existe um ônibus com este código de fabricação: " + onibus.getCodigoFabricacao());
-        }
+        onibusRepository.findByPlaca(onibusDetails.getPlaca()).ifPresent(outro -> {
+            if (!outro.getId().equals(id)) throw new IllegalArgumentException("Placa já cadastrada em outro ônibus.");
+        });
         
-        if (existeNumeroFrota(onibus.getNumeroFrota())) {
-            throw new RuntimeException("Já existe um ônibus com este número de frota: " + onibus.getNumeroFrota());
-        }
-        
-        if (onibus.getStatus() == null) {
-            onibus.setStatus(StatusOnibus.NOVO);
-        }
-        
-        if (onibus.getAnoFabricacao() > LocalDate.now().getYear()) {
-            throw new RuntimeException("Ano de fabricação não pode ser futuro");
-        }
+        onibus.setMarca(onibusDetails.getMarca());
+        onibus.setModelo(onibusDetails.getModelo());
+        onibus.setPlaca(onibusDetails.getPlaca());
+        onibus.setCapacidade(onibusDetails.getCapacidade());
+        onibus.setAnoFabricacao(onibusDetails.getAnoFabricacao());
+        onibus.setNumeroFrota(onibusDetails.getNumeroFrota());
         
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public Onibus atualizarOnibus(Long id, Onibus onibusAtualizado) {
-        Onibus onibusExistente = onibusRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + id));
-        
-        if (!onibusExistente.getChassi().equals(onibusAtualizado.getChassi()) && 
-            existeChassi(onibusAtualizado.getChassi())) {
-            throw new RuntimeException("Já existe um ônibus com este chassi: " + onibusAtualizado.getChassi());
+    public void deleteById(Long id) {
+        Onibus onibus = findById(id).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        if (onibus.getStatus() == Onibus.StatusOnibus.EM_OPERACAO) {
+            throw new IllegalStateException("Não é possível excluir um ônibus que está em operação.");
         }
-        
-        if (!onibusExistente.getCodigoFabricacao().equals(onibusAtualizado.getCodigoFabricacao()) && 
-            existeCodigoFabricacao(onibusAtualizado.getCodigoFabricacao())) {
-            throw new RuntimeException("Já existe um ônibus com este código de fabricação: " + onibusAtualizado.getCodigoFabricacao());
-        }
-        
-        if (!onibusExistente.getNumeroFrota().equals(onibusAtualizado.getNumeroFrota()) && 
-            existeNumeroFrota(onibusAtualizado.getNumeroFrota())) {
-            throw new RuntimeException("Já existe um ônibus com este número de frota: " + onibusAtualizado.getNumeroFrota());
-        }
-        
-        onibusExistente.setChassi(onibusAtualizado.getChassi());
-        onibusExistente.setModelo(onibusAtualizado.getModelo());
-        onibusExistente.setMarca(onibusAtualizado.getMarca());
-        onibusExistente.setCodigoFabricacao(onibusAtualizado.getCodigoFabricacao());
-        onibusExistente.setCapacidade(onibusAtualizado.getCapacidade());
-        onibusExistente.setAnoFabricacao(onibusAtualizado.getAnoFabricacao());
-        onibusExistente.setNumeroFrota(onibusAtualizado.getNumeroFrota());
-        
-        return onibusRepository.save(onibusExistente);
+        onibusRepository.delete(onibus);
     }
 
-    @Override
-    public void excluirOnibus(Long id) {
-        Onibus onibus = onibusRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + id));
-        
-        if (onibus.getStatus() == StatusOnibus.EM_OPERACAO || 
-            onibus.getStatus() == StatusOnibus.EM_MANUTENCAO) {
-            throw new RuntimeException("Não é possível excluir ônibus em operação ou manutenção");
-        }
-        
-        onibusRepository.deleteById(id);
-    }
+    // --- Buscas ---
 
     @Override
-    public Optional<Onibus> buscarPorId(Long id) {
+    @Transactional(readOnly = true)
+    public Optional<Onibus> findById(Long id) {
         return onibusRepository.findById(id);
     }
 
     @Override
-    public List<Onibus> buscarTodos() {
+    @Transactional(readOnly = true)
+    public List<Onibus> findAll() {
         return onibusRepository.findAll();
     }
 
-    // ✅ IMPLEMENTAÇÃO DO NOVO MÉTODO DE BUSCA COMBINADA
     @Override
-    public List<Onibus> searchOnibus(Map<String, String> searchTerms) {
-        String chassi = searchTerms.get("chassi");
-        String numeroFrota = searchTerms.get("numeroFrota");
-        String modelo = searchTerms.get("modelo");
-        String marca = searchTerms.get("marca");
-        StatusOnibus status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusOnibus.valueOf(searchTerms.get("status")) : null;
-        String codigoFabricacao = searchTerms.get("codigoFabricacao");
-        Long motorId = searchTerms.containsKey("motorId") && !searchTerms.get("motorId").isEmpty() ? Long.parseLong(searchTerms.get("motorId")) : null;
-        Long cambioId = searchTerms.containsKey("cambioId") && !searchTerms.get("cambioId").isEmpty() ? Long.parseLong(searchTerms.get("cambioId")) : null;
-        Long pneuId = searchTerms.containsKey("pneuId") && !searchTerms.get("pneuId").isEmpty() ? Long.parseLong(searchTerms.get("pneuId")) : null;
-        Integer capacidadeMinima = searchTerms.containsKey("capacidadeMinima") && !searchTerms.get("capacidadeMinima").isEmpty() ? Integer.parseInt(searchTerms.get("capacidadeMinima")) : null;
-
-        return onibusRepository.searchOnibus(chassi, numeroFrota, modelo, marca, status, codigoFabricacao, motorId, cambioId, pneuId, capacidadeMinima);
-    }
-
-    @Override
-    public Optional<Onibus> buscarPorChassi(String chassi) {
+    @Transactional(readOnly = true)
+    public Optional<Onibus> findByChassi(String chassi) {
         return onibusRepository.findByChassi(chassi);
     }
-
+    
     @Override
-    public Optional<Onibus> buscarPorCodigoFabricacao(String codigoFabricacao) {
-        return onibusRepository.findByCodigoFabricacao(codigoFabricacao);
+    @Transactional(readOnly = true)
+    public List<Onibus> search(OnibusSearchDTO criteria) {
+        return onibusRepository.findAll(OnibusSpecification.searchByCriteria(criteria));
     }
 
-    @Override
-    public Optional<Onibus> buscarPorNumeroFrota(String numeroFrota) {
-        return onibusRepository.findByNumeroFrota(numeroFrota);
-    }
+    // --- Lógica de Negócio (Ciclo de Vida) ---
 
     @Override
-    public List<Onibus> buscarPorStatus(StatusOnibus status) {
-        return onibusRepository.findByStatus(status);
-    }
-
-    @Override
-    public List<Onibus> buscarDisponiveis() {
-        return onibusRepository.findByStatus(StatusOnibus.DISPONIVEL);
-    }
-
-    @Override
-    public List<Onibus> buscarNovos() {
-        return onibusRepository.findByStatus(StatusOnibus.NOVO);
-    }
-
-    @Override
-    public List<Onibus> buscarEmManutencao() {
-        return onibusRepository.findByStatus(StatusOnibus.EM_MANUTENCAO);
-    }
-
-    @Override
-    public List<Onibus> buscarPorMarca(String marca) {
-        return onibusRepository.findByMarca(marca);
-    }
-
-    @Override
-    public List<Onibus> buscarPorModelo(String modelo) {
-        return onibusRepository.findByModelo(modelo);
-    }
-
-    @Override
-    public List<Onibus> buscarPorAnoFabricacao(Integer anoFabricacao) {
-        return onibusRepository.findByAnoFabricacao(anoFabricacao);
-    }
-
-    @Override
-    public List<Onibus> buscarPorCapacidadeMinima(Integer capacidadeMinima) {
-        return onibusRepository.findByCapacidadeGreaterThanEqual(capacidadeMinima);
-    }
-
-    @Override
-    public Onibus colocarEmManutencao(Long id) {
-        Onibus onibus = onibusRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + id));
-        
-        if (onibus.getStatus() != StatusOnibus.EM_OPERACAO) {
-            throw new RuntimeException("Só é possível colocar em manutenção ônibus em operação");
-        }
-        
-        onibus.setStatus(StatusOnibus.EM_MANUTENCAO);
+    public Onibus colocarEmOperacao(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.colocarEmOperacao();
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public Onibus retirarDeManutencao(Long id) {
-        Onibus onibus = onibusRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + id));
-        
-        if (onibus.getStatus() != StatusOnibus.EM_MANUTENCAO) {
-            throw new RuntimeException("Só é possível retirar da manutenção ônibus em manutenção");
-        }
-        
-        onibus.setStatus(StatusOnibus.EM_OPERACAO);
+    public Onibus retirarDeOperacao(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.retirarDeOperacao();
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public Onibus aposentarOnibus(Long id) {
-        Onibus onibus = onibusRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + id));
-        
-        if (onibus.getStatus() == StatusOnibus.EM_OPERACAO) {
-            throw new RuntimeException("Não é possível aposentar ônibus em operação");
-        }
-        
-        onibus.setStatus(StatusOnibus.APOSENTADO);
+    public Onibus enviarParaManutencao(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.enviarParaManutencao();
+        return onibusRepository.save(onibus);
+    }
+    
+    @Override
+    public Onibus retornarDaManutencao(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.retornarDaManutencao();
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public Onibus venderOnibus(Long id) {
-        Onibus onibus = onibusRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + id));
-        
-        if (onibus.getStatus() != StatusOnibus.DISPONIVEL && 
-            onibus.getStatus() != StatusOnibus.APOSENTADO) {
-            throw new RuntimeException("Só é possível vender ônibus disponível ou aposentado");
-        }
-        
-        onibus.setStatus(StatusOnibus.VENDIDO);
+    public Onibus enviarParaReforma(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.enviarParaReforma();
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public boolean verificarDisponibilidade(Long onibusId, LocalDate dataInicio, LocalDate dataFim) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + onibusId));
-
-        return onibus.getStatus() == StatusOnibus.DISPONIVEL;
+    public Onibus retornarDaReforma(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.retornarDaReforma();
+        return onibusRepository.save(onibus);
     }
 
     @Override
-    public boolean existeChassi(String chassi) {
-        return onibusRepository.existsByChassi(chassi);
+    public Onibus aposentar(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.aposentar();
+        return onibusRepository.save(onibus);
     }
 
     @Override
-    public boolean existeCodigoFabricacao(String codigoFabricacao) {
-        return onibusRepository.existsByCodigoFabricacao(codigoFabricacao);
+    public Onibus vender(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.vender();
+        return onibusRepository.save(onibus);
     }
 
-    @Override
-    public boolean existeNumeroFrota(String numeroFrota) {
-        return onibusRepository.existsByNumeroFrota(numeroFrota);
-    }
+    // --- Lógica de Operação ---
 
     @Override
-    public List<Object[]> estatisticasPorStatus() {
-        return onibusRepository.countOnibusByStatus();
+    public Onibus registrarViagem(Long onibusId, Double kmPercorridos) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.registrarViagem(kmPercorridos);
+        return onibusRepository.save(onibus);
     }
 
-    @Override
-    public List<Object[]> estatisticasPorMarca() {
-        return onibusRepository.countOnibusByMarca();
-    }
-
-    @Override
-    public List<Object[]> estatisticasPorAno() {
-        return onibusRepository.countOnibusByAnoFabricacao();
-    }
+    // --- Gerenciamento de Componentes ---
 
     @Override
     public Onibus instalarMotor(Long onibusId, Long motorId) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
-        Motor motor = motorRepository.findById(motorId)
-            .orElseThrow(() -> new RuntimeException("Motor não encontrado"));
-        
-        if (onibus.getMotor() != null) {
-            throw new RuntimeException("Ônibus já possui um motor instalado.");
-        }
-        if (motor.getOnibus() != null) {
-            throw new RuntimeException("Motor já está instalado em outro ônibus.");
-        }
-        
-        onibus.setMotor(motor);
-        motor.setOnibus(onibus);
-        motor.instalar(); 
-        
-        motorRepository.save(motor);
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        Motor motor = motorRepository.findById(motorId).orElseThrow(() -> new RuntimeException("Motor não encontrado"));
+        onibus.instalarMotor(motor);
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public Onibus removerMotor(Long onibusId, Long motorId) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
-        Motor motor = motorRepository.findById(motorId)
-            .orElseThrow(() -> new RuntimeException("Motor não encontrado"));
-        
-        if (onibus.getMotor() == null || !onibus.getMotor().getId().equals(motor.getId())) {
-            throw new RuntimeException("Motor não está instalado neste ônibus.");
-        }
-        
-        onibus.setMotor(null);
-        motor.remover();
-        
-        motorRepository.save(motor);
+    public Onibus removerMotor(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.removerMotor();
         return onibusRepository.save(onibus);
     }
 
     @Override
     public Onibus instalarCambio(Long onibusId, Long cambioId) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
-        Cambio cambio = cambioRepository.findById(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado"));
-        
-        if (onibus.getCambio() != null) {
-            throw new RuntimeException("Ônibus já possui um câmbio instalado.");
-        }
-        if (cambio.getOnibus() != null) {
-            throw new RuntimeException("Câmbio já está instalado em outro ônibus.");
-        }
-        
-        onibus.setCambio(cambio);
-        cambio.setOnibus(onibus);
-        cambio.instalar(); 
-        
-        cambioRepository.save(cambio);
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        Cambio cambio = cambioRepository.findById(cambioId).orElseThrow(() -> new RuntimeException("Câmbio não encontrado"));
+        onibus.instalarCambio(cambio);
         return onibusRepository.save(onibus);
     }
 
     @Override
-    public Onibus removerCambio(Long onibusId, Long cambioId) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
-        Cambio cambio = cambioRepository.findById(cambioId)
-            .orElseThrow(() -> new RuntimeException("Câmbio não encontrado"));
-        
-        if (onibus.getCambio() == null || !onibus.getCambio().getId().equals(cambio.getId())) {
-            throw new RuntimeException("Câmbio não está instalado neste ônibus.");
-        }
-        
-        onibus.setCambio(null);
-        cambio.remover();
-        
-        cambioRepository.save(cambio);
+    public Onibus removerCambio(Long onibusId) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.removerCambio();
         return onibusRepository.save(onibus);
     }
 
     @Override
     public Onibus instalarPneu(Long onibusId, Long pneuId, Pneu.PosicaoPneu posicao) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
-        Pneu pneu = pneuRepository.findById(pneuId)
-            .orElseThrow(() -> new RuntimeException("Pneu não encontrado"));
-        
-        if (pneuRepository.findByOnibusAndPosicao(onibus, posicao).isPresent()) {
-            throw new RuntimeException("Já existe um pneu nesta posição.");
-        }
-        if (pneu.getOnibus() != null) {
-            throw new RuntimeException("Pneu já está instalado em um ônibus.");
-        }
-        
-        pneu.setOnibus(onibus);
-        pneu.setPosicao(posicao);
-        pneu.instalar();
-        
-        pneuRepository.save(pneu);
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        Pneu pneu = pneuRepository.findById(pneuId).orElseThrow(() -> new RuntimeException("Pneu não encontrado"));
+        onibus.instalarPneu(pneu, posicao);
         return onibusRepository.save(onibus);
     }
+
+    @Override
+    public Onibus removerPneu(Long onibusId, Pneu.PosicaoPneu posicao) {
+        Onibus onibus = findById(onibusId).orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
+        onibus.removerPneu(posicao);
+        return onibusRepository.save(onibus);
+    }
+
+    public OrdemServico aposentarOnibusViaOS(Long onibusId) {
+        Onibus onibus = findById(onibusId)
+            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado para aposentadoria."));
+
+        // Valida se o ônibus pode ser aposentado
+        if (onibus.getStatus() == Onibus.StatusOnibus.EM_OPERACAO) {
+            throw new IllegalStateException("O ônibus precisa ser retirado de operação antes de iniciar o processo de aposentadoria.");
+        }
+        if (onibus.getStatus() == Onibus.StatusOnibus.APOSENTADO || onibus.getStatus() == Onibus.StatusOnibus.VENDIDO) {
+            throw new IllegalStateException("Este ônibus já foi aposentado ou vendido.");
+        }
+
+        // 1. Gera um número único para a OS de aposentadoria
+        String prefix = "OS-APOSENT-";
+        int prefixLength = prefix.length() + 1;
+        Integer maxNum = osRepository.findMaxNumeroByPrefix(prefix + "%", prefixLength);
+        String numeroOS = String.format("%s%06d", prefix, maxNum + 1);
+
+        String desc = "Ordem de Serviço para descomissionamento completo e preparação para aposentadoria do Ônibus " + onibus.getPlaca();
+        LocalDate hoje = LocalDate.now();
+        
+        // 2. Cria a OS Corretiva com um prazo maior, pois o trabalho é mais complexo
+        OrdemServico os = new OrdemServico(numeroOS, OrdemServico.TipoOrdemServico.CORRETIVA, desc, hoje, hoje.plusDays(14));
+        os.setOnibus(onibus); // Define o ônibus como o alvo da OS
+
+        // 3. Salva a OS, formalizando o início do processo
+        return osRepository.save(os);
+    }
+
+    // --- Lógica de OS Preventiva ---
     
     @Override
-    public Onibus removerPneu(Long onibusId, Long pneuId) {
-        Onibus onibus = onibusRepository.findById(onibusId)
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado"));
-        Pneu pneu = pneuRepository.findById(pneuId)
-            .orElseThrow(() -> new RuntimeException("Pneu não encontrado"));
-        
-        if (pneu.getOnibus() == null || !pneu.getOnibus().getId().equals(onibus.getId())) {
-            throw new RuntimeException("Pneu não está instalado neste ônibus.");
+    public void verificarEGerarOsPreventivas() {
+        List<Onibus> onibusAtivos = onibusRepository.findAll(); 
+        for (Onibus onibus : onibusAtivos) {
+            // Verifica se o próprio ônibus precisa de reforma
+            if (onibus.reformaPrestesVencer()) {
+                if (!osRepository.existsByOnibusAndStatusIn(onibus, List.of(StatusOrdemServico.ABERTA, StatusOrdemServico.EM_EXECUCAO))) {
+                    String prefix = "OS-PREV-";
+                    Integer maxNum = osRepository.findMaxNumeroByPrefix(prefix + "%", prefix.length() + 1);
+                    String numeroOS = String.format("%s%03d", prefix, maxNum + 1);
+                    
+                    String desc = "Reforma Preventiva (30 dias) para Ônibus " + onibus.getPlaca();
+                    LocalDate dataPrevisaoInicio = LocalDate.now().plusDays(onibus.getDiasRestantesReforma());
+                    
+                    OrdemServico os = new OrdemServico(numeroOS, TipoOrdemServico.PREVENTIVA, desc, dataPrevisaoInicio, dataPrevisaoInicio.plusDays(30));
+                    os.setOnibus(onibus);
+                    osRepository.save(os);
+                    System.out.println("LOG: OS Preventiva " + numeroOS + " criada para o ônibus " + onibus.getId());
+                }
+            }
         }
-        
-        pneu.setOnibus(null);
-        pneu.setPosicao(null);
-        pneu.remover();
-        
-        pneuRepository.save(pneu);
-        return onibusRepository.save(onibus);
+    }
+
+    // --- Métodos de Relatório ---
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Object[]> countByStatus() {
+        return onibusRepository.countByStatus();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Object[]> countByMarca() {
+        return onibusRepository.countByMarca();
     }
 }

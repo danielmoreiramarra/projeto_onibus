@@ -2,10 +2,15 @@ package com.proj_db.onibus.model;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -15,171 +20,229 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Entity
+@NoArgsConstructor
 @Table(name = "pneus")
 public class Pneu {
 
+    // --- CONSTANTES DE LIMITE DE DESGASTE ---
+    private static final double KM_LIMITE_MANUTENCAO = 2500;
+    private static final double KM_LIMITE_REFORMA = 10000;
+    private static final long DIAS_LIMITE_MANUTENCAO = 60; // 2 meses
+    private static final long DIAS_LIMITE_REFORMA = 180; // 6 meses
+
+    // --- ATRIBUTOS ---
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "marca", nullable = false, length = 100)
-    @NotBlank(message = "Marca é obrigatória")
-    private String marca;
-
-    @Column(name = "medida", nullable = false, length = 20)
-    @NotBlank(message = "Medida é obrigatória")
-    private String medida;
-
-    @Column(name = "codigo_fabricacao", unique = true, nullable = false, length = 50)
-    @NotBlank(message = "Código de fabricação é obrigatório")
-    private String codigoFabricacao;
-
+    
+    // ... (outros atributos como anoFabricacao, codigoFabricacao, etc. permanecem iguais)
     @Column(name = "ano_fabricacao", nullable = false)
-    @NotNull(message = "Ano de fabricação é obrigatório")
     private Integer anoFabricacao;
-
-    @Column(name = "numero_serie", unique = true, nullable = false, length = 100)
-    @NotBlank(message = "Número de série é obrigatório")
-    private String numeroSerie;
-
+    @Column(name = "codigo_fabricacao", unique = true, nullable = false, length = 50)
+    private String codigoFabricacao;
     @Column(name = "data_compra", nullable = false)
-    @NotNull(message = "Data de compra é obrigatória")
     private LocalDate dataCompra;
-
-    @Column(name = "data_ultima_reforma")
-    private LocalDate dataUltimaReforma;
-
-    @Column(name = "periodo_garantia_meses", nullable = false)
-    @NotNull(message = "Período de garantia é obrigatório")
-    @Positive(message = "Período de garantia deve ser positivo")
-    private Integer periodoGarantiaMeses = 24;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20, nullable = false)
-    @NotNull(message = "Status é obrigatório")
-    private StatusPneu status = StatusPneu.NOVO;
-
-    @Column(name = "km_rodados")
-    private Integer kmRodados = 0;
-
     @Column(name = "data_instalacao")
     private LocalDate dataInstalacao;
-
+    @Column(name = "km_rodados", nullable = false)
+    @PositiveOrZero
+    private Double kmRodados = 0.0;
+    @Column(name = "marca", nullable = false, length = 100)
+    private String marca;
+    @Column(name = "medida", nullable = false, length = 20)
+    private String medida;
+    @Column(name = "modelo", nullable = false, length = 100)
+    private String modelo;
+    @Column(name = "numero_serie", unique = true, nullable = false, length = 100)
+    private String numeroSerie;
+    @Column(name = "periodo_garantia_meses", nullable = false)
+    private Integer periodoGarantiaMeses = 24;
+    
     @ManyToOne
     @JsonBackReference
     @JoinColumn(name = "onibus_id", referencedColumnName = "id")
     private Onibus onibus;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "posicao", length = 10)
-    private PosicaoPneu posicao;  // "DD", "DE", "TDE", "TDI", "TEE", "TEI"
+    @Column(name = "posicao")
+    private PosicaoPneu posicao;
 
-    public enum StatusPneu {
-        NOVO,
-        DISPONIVEL,
-        EM_USO,
-        EM_MANUTENCAO,
-        REFORMADO,
-        DESCARTADO,
-        VENDIDO
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20, nullable = false)
+    private StatusPneu status = StatusPneu.NOVO;
 
-    public enum PosicaoPneu {
-        DD,
-        DE,
-        TDE,
-        TDI,
-        TEE,
-        TEI
-    }
+    @ElementCollection
+    @CollectionTable(name = "pneu_historico_envio_manutencao", joinColumns = @JoinColumn(name = "pneu_id"))
+    private List<LocalDate> historicoEnvioManutencao = new ArrayList<>();
+    @ElementCollection
+    @CollectionTable(name = "pneu_historico_envio_reforma", joinColumns = @JoinColumn(name = "pneu_id"))
+    private List<LocalDate> historicoEnvioReforma = new ArrayList<>();
+    @ElementCollection
+    @CollectionTable(name = "pneu_historico_retorno_manutencao", joinColumns = @JoinColumn(name = "pneu_id"))
+    private List<LocalDate> historicoRetornoManutencao = new ArrayList<>();
+    @ElementCollection
+    @CollectionTable(name = "pneu_historico_retorno_reforma", joinColumns = @JoinColumn(name = "pneu_id"))
+    private List<LocalDate> historicoRetornoReforma = new ArrayList<>();
+    
 
-    // Método para verificar se está na garantia
-    public boolean estaEmGarantia() {
-        if (this.status == StatusPneu.VENDIDO || this.status == StatusPneu.DESCARTADO) {
-            return false; // Pneus que foram vendidos ou descartados não podem estar em garantia
-        }
-        
-        LocalDate dataFimGarantia = this.dataCompra.plusMonths(this.periodoGarantiaMeses);
-        return LocalDate.now().isBefore(dataFimGarantia) || LocalDate.now().isEqual(dataFimGarantia);
-    }
+    // --- ENUMS ---
+    public enum StatusPneu { NOVO, DISPONIVEL, EM_USO, EM_MANUTENCAO, EM_REFORMA, DESCARTADO, VENDIDO }
+    public enum PosicaoPneu { DD, DE, TDE, TDI, TEE, TEI }
 
-    // Método para calcular dias restantes de garantia
-    public Long getDiasRestantesGarantia() {
-        if (!estaEmGarantia()) {
-            return 0L;
-        }
-       
-        LocalDate dataFimGarantia = this.dataCompra.plusMonths(this.periodoGarantiaMeses);
-        return ChronoUnit.DAYS.between(LocalDate.now(), dataFimGarantia);
-    }
 
-    // Método para verificar se a garantia está prestes a vencer (últimos 30 dias)
-    public boolean garantiaPrestesVencer() {
-        if (!estaEmGarantia()) {
-            return false;
-        }
-        
-        LocalDate dataFimGarantia = this.dataCompra.plusMonths(this.periodoGarantiaMeses);
-        LocalDate trintaDiasAntes = dataFimGarantia.minusDays(30);
-        
-        return LocalDate.now().isAfter(trintaDiasAntes) || LocalDate.now().isEqual(trintaDiasAntes);
-    }
+    // --- MÉTODOS DE CICLO DE VIDA E OPERAÇÃO ---
 
-    // Método para instalar o pneu que passou por revisão (muda status de NOVO ou DISPONIVEL para EM_USO)
-    public void instalar() {
-        if (this.status == StatusPneu.NOVO || this.status == StatusPneu.DISPONIVEL) {
-            this.status = StatusPneu.EM_USO;
-        }
-    }
-
-    // Método para remover um pneu (só pode remover se o Pneu estiver com status EM_USO)
-    public void remover() {
-        if (this.status == StatusPneu.EM_USO) {
-            this.status = StatusPneu.DISPONIVEL;
-        }
-    }
-
-    // Método para fazer a revisão de um pneu (muda status de NOVO, DISPONIVEL ou EM_USO para REFORMADO)
-    public void reformar() {
-        if (this.status == StatusPneu.NOVO || this.status == StatusPneu.DISPONIVEL || this.status == StatusPneu.EM_USO) {
-            this.status = StatusPneu.REFORMADO;
-            this.kmRodados = 0; // Reseta a quilometrogem do pneu
-            this.periodoGarantiaMeses = 12;
-            this.dataUltimaReforma = LocalDate.now(); // Alterar data da última revisão
-        }
-    }
-
-    // Método para descartar um pneu (só pode descartar se o Pneu estiver com status DSIPONIVEL ou EM_USO)
     public void descartar() {
-        if (this.status == StatusPneu.DISPONIVEL || this.status == StatusPneu.EM_USO) {
+        // <<< LÓGICA SIMPLIFICADA: Apenas muda o status. Orquestração via Serviço.
+        if (this.status == StatusPneu.DISPONIVEL) {
             this.status = StatusPneu.DESCARTADO;
+        } else {
+             throw new IllegalStateException("Apenas pneus DISPONÍVEIS podem ser descartados.");
         }
     }
 
-    // Método para vender um pneu (só pode vender se o Pneu já foi descartado)
+    public void enviarParaManutencao() {
+        if (this.status == StatusPneu.NOVO || this.status == StatusPneu.DISPONIVEL || this.status == StatusPneu.EM_USO) {
+            if (this.onibus != null) {
+                this.onibus.removerPneu(this.getPosicao());
+            }
+            this.status = StatusPneu.EM_MANUTENCAO;
+            this.historicoEnvioManutencao.add(LocalDate.now());
+        }
+    }
+
+    public void enviarParaReforma() {
+        if (this.status == StatusPneu.NOVO || this.status == StatusPneu.DISPONIVEL || this.status == StatusPneu.EM_USO) {
+            if (this.onibus != null) {
+                this.onibus.removerPneu(this.getPosicao());
+            }
+            this.status = StatusPneu.EM_REFORMA;
+            this.historicoEnvioReforma.add(LocalDate.now());
+        }
+    }
+
+    public void instalar(Onibus onibus, PosicaoPneu posicao) {
+        if (this.status == StatusPneu.NOVO || this.status == StatusPneu.DISPONIVEL) {
+            this.onibus = onibus;
+            this.posicao = posicao;
+            this.status = StatusPneu.EM_USO;
+            this.dataInstalacao = LocalDate.now();
+        }
+    }
+
+    public void remover(Onibus onibus) {
+        if (this.onibus == onibus && this.status == StatusPneu.EM_USO) {
+            this.onibus = null;
+            this.posicao = null;
+            this.dataInstalacao = null;
+            this.status = StatusPneu.DISPONIVEL;
+        } else {
+            throw new IllegalStateException("Este pneu não está instalado no ônibus informado.");
+        }
+    }
+    
+    public void retornarDaManutencao() {
+        if (this.status == StatusPneu.EM_MANUTENCAO) {
+            this.status = StatusPneu.DISPONIVEL;
+            this.historicoRetornoManutencao.add(LocalDate.now());
+        }
+    }
+
+    public void retornarDaReforma() {
+        // <<< REGRA REFORÇADA: Só permite alteração se estiver em reforma.
+        if (this.status == StatusPneu.EM_REFORMA) {
+            this.status = StatusPneu.DISPONIVEL;
+            this.kmRodados = 0.0; // Reseta a quilometragem
+            this.periodoGarantiaMeses = 12; // A garantia de um pneu reformado é menor
+            this.historicoRetornoReforma.add(LocalDate.now());
+        } else {
+            throw new IllegalStateException("Apenas pneus EM REFORMA podem ter seus dados de reforma atualizados.");
+        }
+    }
+
     public void vender() {
         if (this.status == StatusPneu.DESCARTADO) {
             this.status = StatusPneu.VENDIDO;
         }
     }
 
-    // Método para verificar se precisa de revisão (a cada 6 meses)
+    // --- MÉTODOS DE CONSULTA E LÓGICA PREVENTIVA ---
+    
+    @Transient
+    public LocalDate getDataUltimaManutencao() {
+        if (historicoRetornoManutencao.isEmpty()) return null;
+        return historicoRetornoManutencao.get(historicoRetornoManutencao.size() - 1);
+    }
+
+    @Transient
+    public LocalDate getDataUltimaReforma() {
+        if (historicoRetornoReforma.isEmpty()) return null;
+        return historicoRetornoReforma.get(historicoRetornoReforma.size() - 1);
+    }
+
+    // <<< NOVOS MÉTODOS PARA LÓGICA PREVENTIVA PROATIVA >>>
+    
+    @Transient
+    public Double getKmRestantesManutencao() {
+        if (this.status != StatusPneu.EM_USO) return Double.MAX_VALUE;
+        return KM_LIMITE_MANUTENCAO - this.kmRodados;
+    }
+
+    @Transient
+    public Double getKmRestantesReforma() {
+        if (this.status != StatusPneu.EM_USO) return Double.MAX_VALUE;
+        return KM_LIMITE_REFORMA - this.kmRodados;
+    }
+
+    @Transient
+    public Long getDiasRestantesManutencao() {
+        if (this.status != StatusPneu.EM_USO) return Long.MAX_VALUE;
+        
+        LocalDate dataBase = (getDataUltimaManutencao() != null) ? getDataUltimaManutencao() : this.dataInstalacao;
+        if (dataBase == null) return Long.MAX_VALUE; // Ainda não foi instalado
+        
+        LocalDate proximaManutencao = dataBase.plusDays(DIAS_LIMITE_MANUTENCAO);
+        return ChronoUnit.DAYS.between(LocalDate.now(), proximaManutencao);
+    }
+
+    @Transient
+    public Long getDiasRestantesReforma() {
+        if (this.status != StatusPneu.EM_USO) return Long.MAX_VALUE;
+
+        LocalDate dataBase = (getDataUltimaReforma() != null) ? getDataUltimaReforma() : this.dataCompra;
+        LocalDate proximaReforma = dataBase.plusDays(DIAS_LIMITE_REFORMA);
+        return ChronoUnit.DAYS.between(LocalDate.now(), proximaReforma);
+    }
+
+    public boolean manutencaoPrestesVencer() {
+        if (this.status != StatusPneu.EM_USO) return false;
+        // Alerta se faltar menos de 30 dias OU menos de 500 km
+        return getDiasRestantesManutencao() <= 30 || getKmRestantesManutencao() <= 500;
+    }
+
+    public boolean precisaManutencao() {
+        if (this.status != StatusPneu.EM_USO) return false;
+        return getDiasRestantesManutencao() <= 0 || getKmRestantesManutencao() <= 0;
+    }
+
+    public boolean reformaPrestesVencer() {
+        if (this.status != StatusPneu.EM_USO) return false;
+        // Alerta se faltar menos de 30 dias OU menos de 2000 km
+        return getDiasRestantesReforma() <= 30 || getKmRestantesReforma() <= 2000;
+    }
+
     public boolean precisaReforma() {
-        if (this.status != StatusPneu.DESCARTADO && this.status != StatusPneu.VENDIDO) {
-            LocalDate dataUltimaReforma_var = this.dataUltimaReforma;
-            if (this.dataUltimaReforma == null) {
-                dataUltimaReforma_var = getDataCompra();
-            }
-            LocalDate proximaReforma = dataUltimaReforma_var.plusMonths(6);
-            return LocalDate.now().isAfter(proximaReforma) || LocalDate.now().isEqual(proximaReforma) || this.kmRodados >= 10000;
-        }
-        return false;
+        if (this.status != StatusPneu.EM_USO) return false;
+        return getDiasRestantesReforma() <= 0 || getKmRestantesReforma() <= 0;
     }
 }

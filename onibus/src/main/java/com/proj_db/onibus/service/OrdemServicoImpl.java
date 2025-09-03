@@ -1,320 +1,222 @@
 package com.proj_db.onibus.service;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
+import java.util.List; // Importa todos os modelos
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Autowired; // Importa todos os repositórios
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.proj_db.onibus.dto.OrdemServicoCreateDTO;
+import com.proj_db.onibus.dto.OrdemServicoSearchDTO;
+import com.proj_db.onibus.dto.OrdemServicoUpdateDTO;
+import com.proj_db.onibus.model.Cambio;
 import com.proj_db.onibus.model.ItemOrdemServico;
+import com.proj_db.onibus.model.Motor;
 import com.proj_db.onibus.model.Onibus;
 import com.proj_db.onibus.model.OrdemServico;
 import com.proj_db.onibus.model.OrdemServico.StatusOrdemServico;
-import com.proj_db.onibus.model.OrdemServico.TipoOrdemServico;
+import com.proj_db.onibus.model.Pneu;
 import com.proj_db.onibus.model.Produto;
-import com.proj_db.onibus.repository.ItemOrdemServicoRepository;
+import com.proj_db.onibus.repository.CambioRepository;
+import com.proj_db.onibus.repository.MotorRepository;
 import com.proj_db.onibus.repository.OnibusRepository;
 import com.proj_db.onibus.repository.OrdemServicoRepository;
+import com.proj_db.onibus.repository.PneuRepository;
 import com.proj_db.onibus.repository.ProdutoRepository;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional
 public class OrdemServicoImpl implements OrdemServicoService {
-    
-    @Autowired private OrdemServicoRepository ordemServicoRepository;
+
+    // --- DEPENDÊNCIAS ---
+    @Autowired private OrdemServicoRepository osRepository;
+    @Autowired private OnibusRepository onibusRepository;
+    @Autowired private MotorRepository motorRepository;
+    @Autowired private CambioRepository cambioRepository;
+    @Autowired private PneuRepository pneuRepository;
     @Autowired private ProdutoRepository produtoRepository;
     @Autowired private EstoqueService estoqueService;
-    @Autowired private ItemOrdemServicoRepository itemOrdemServicoRepository;
-    @Autowired private OnibusRepository onibusRepository;
+
+    // --- CRUD BÁSICO ---
 
     @Override
-    public OrdemServico criarOrdemServico(OrdemServico ordemServico) {
-        if (ordemServico.getNumeroOS() == null || ordemServico.getNumeroOS().isEmpty()) {
-            ordemServico.setNumeroOS(gerarProximoNumeroOS());
-        }
-        
-        if (ordemServicoRepository.existsByNumeroOS(ordemServico.getNumeroOS())) {
-            throw new RuntimeException("Já existe uma OS com este número: " + ordemServico.getNumeroOS());
-        }
+    public OrdemServico create(OrdemServicoCreateDTO dto) {
+        osRepository.findByNumeroOS(dto.getNumeroOS()).ifPresent(os -> {
+            throw new IllegalArgumentException("O número de OS '" + dto.getNumeroOS() + "' já existe.");
+        });
 
-        Onibus onibus = onibusRepository.findById(ordemServico.getOnibus().getId())
-            .orElseThrow(() -> new RuntimeException("Ônibus não encontrado com ID: " + ordemServico.getOnibus().getId()));
-        ordemServico.setOnibus(onibus);
+        OrdemServico os = new OrdemServico(
+            dto.getNumeroOS(), dto.getTipo(), dto.getDescricao(),
+            dto.getDataPrevisaoInicio(), dto.getDataPrevisaoConclusao()
+        );
 
-        if (ordemServico.getDataAbertura() == null) {
-            ordemServico.setDataAbertura(LocalDate.now());
+        // Associa os alvos (ônibus, motor, etc.) buscando-os pelo ID
+        if (dto.getOnibusId() != null) os.setOnibus(onibusRepository.findById(dto.getOnibusId()).orElse(null));
+        if (dto.getMotorId() != null) os.setMotor(motorRepository.findById(dto.getMotorId()).orElse(null));
+        if (dto.getCambioId() != null) os.setCambio(cambioRepository.findById(dto.getCambioId()).orElse(null));
+        if (dto.getPneuId() != null) os.setPneu(pneuRepository.findById(dto.getPneuId()).orElse(null));
+
+        if (os.getAlvo() == null) {
+            throw new IllegalArgumentException("Uma Ordem de Serviço deve ter pelo menos um alvo.");
         }
         
-        if (ordemServico.getStatus() == null) {
-            ordemServico.setStatus(StatusOrdemServico.ABERTA);
-        }
-        
-        if (ordemServico.getTipo() == TipoOrdemServico.PREVENTIVA) {
-            // Lógica de reserva de estoque para serviços preventivos (implementaremos no frontend)
-        }
-        
-        return ordemServicoRepository.save(ordemServico);
-    }
-    
-    @Override
-    public OrdemServico atualizarOrdemServico(Long id, OrdemServico ordemServicoAtualizada) {
-        OrdemServico osExistente = buscarPorId(id);
-        
-        if (!osExistente.getNumeroOS().equals(ordemServicoAtualizada.getNumeroOS()) && 
-            ordemServicoRepository.existsByNumeroOS(ordemServicoAtualizada.getNumeroOS())) {
-            throw new RuntimeException("Já existe uma OS com este número: " + ordemServicoAtualizada.getNumeroOS());
-        }
-        
-        osExistente.setNumeroOS(ordemServicoAtualizada.getNumeroOS());
-        osExistente.setTipo(ordemServicoAtualizada.getTipo());
-        osExistente.setDescricao(ordemServicoAtualizada.getDescricao());
-        osExistente.setDataPrevisaoConclusao(ordemServicoAtualizada.getDataPrevisaoConclusao());
-        
-        return ordemServicoRepository.save(osExistente);
+        return osRepository.save(os);
     }
 
     @Override
-    public OrdemServico cancelarOrdemServico(Long id) {
-        return cancelarOrdemServico(id, "Cancelado pelo usuário");
-    }
-
-    @Override
-    public OrdemServico iniciarExecucao(Long ordemServicoId) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        if (os.getStatus() != StatusOrdemServico.ABERTA) {
-            throw new RuntimeException("Só é possível iniciar OSs com status ABERTA");
+    public OrdemServico updateInfo(Long osId, OrdemServicoUpdateDTO dto) {
+        OrdemServico os = findById(osId)
+            .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com ID: " + osId));
+            
+        if (os.getStatus() != OrdemServico.StatusOrdemServico.ABERTA) {
+            throw new IllegalStateException("Apenas informações de uma OS ABERTA podem ser atualizadas.");
         }
         
-        os.setStatus(StatusOrdemServico.EM_EXECUCAO);
-        return ordemServicoRepository.save(os);
+        os.setDescricao(dto.getDescricao());
+        os.setDataPrevisaoInicio(dto.getDataPrevisaoInicio());
+        os.setDataPrevisaoConclusao(dto.getDataPrevisaoConclusao());
+        
+        return osRepository.save(os);
     }
 
     @Override
-    public OrdemServico finalizarOrdemServico(Long ordemServicoId) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        if (os.getStatus() != StatusOrdemServico.EM_EXECUCAO) {
-            throw new RuntimeException("Só é possível finalizar OSs com status EM_EXECUCAO");
-        }
-        
-        os.setStatus(StatusOrdemServico.FINALIZADA);
-        os.setDataConclusao(LocalDate.now());
-        return ordemServicoRepository.save(os);
-    }
-
-    @Override
-    public OrdemServico cancelarOrdemServico(Long ordemServicoId, String motivo) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        if (os.getStatus() != StatusOrdemServico.ABERTA && os.getStatus() != StatusOrdemServico.EM_EXECUCAO) {
-            throw new RuntimeException("Só é possível cancelar OSs com status ABERTA ou EM_EXECUCAO");
-        }
-        
-        os.setStatus(StatusOrdemServico.CANCELADA);
-        os.setDataCancelamento(LocalDate.now());
-        
-        return ordemServicoRepository.save(os);
-    }
-
-    @Override
-    public void excluirOrdemServico(Long id) {
-        OrdemServico os = buscarPorId(id);
+    public void delete(Long osId) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
         if (os.getStatus() != StatusOrdemServico.CANCELADA) {
-            throw new RuntimeException("Só é possível excluir OSs com status CANCELADA");
+            throw new IllegalStateException("Apenas Ordens de Serviço CANCELADAS podem ser excluídas.");
         }
-        ordemServicoRepository.deleteById(id);
+        osRepository.delete(os);
     }
-    
+
+    // --- MÉTODOS DE BUSCA ---
+
     @Override
-    public OrdemServico buscarPorId(Long id) {
-        return ordemServicoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ordem de Serviço não encontrada com ID: " + id));
+    @Transactional(readOnly = true)
+    public Optional<OrdemServico> findById(Long id) {
+        return osRepository.findById(id);
     }
 
     @Override
-    public List<OrdemServico> buscarTodas() {
-        return ordemServicoRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<OrdemServico> findAll() {
+        return osRepository.findAll();
     }
 
     @Override
-    public List<OrdemServico> searchOrdemServico(Map<String, String> searchTerms) {
-        Long osId = searchTerms.containsKey("osId") && !searchTerms.get("osId").isEmpty() ? Long.parseLong(searchTerms.get("osId")) : null;
-        String numeroOS = searchTerms.get("numeroOS");
-        TipoOrdemServico tipo = searchTerms.containsKey("tipo") && !searchTerms.get("tipo").isEmpty() ? TipoOrdemServico.valueOf(searchTerms.get("tipo")) : null;
-        StatusOrdemServico status = searchTerms.containsKey("status") && !searchTerms.get("status").isEmpty() ? StatusOrdemServico.valueOf(searchTerms.get("status")) : null;
-        Long onibusId = searchTerms.containsKey("onibusId") && !searchTerms.get("onibusId").isEmpty() ? Long.parseLong(searchTerms.get("onibusId")) : null;
-        LocalDate dataAberturaInicio = searchTerms.containsKey("dataAberturaInicio") && !searchTerms.get("dataAberturaInicio").isEmpty() ? LocalDate.parse(searchTerms.get("dataAberturaInicio")) : null;
-        LocalDate dataAberturaFim = searchTerms.containsKey("dataAberturaFim") && !searchTerms.get("dataAberturaFim").isEmpty() ? LocalDate.parse(searchTerms.get("dataAberturaFim")) : null;
-        LocalDate dataConclusaoInicio = searchTerms.containsKey("dataConclusaoInicio") && !searchTerms.get("dataConclusaoInicio").isEmpty() ? LocalDate.parse(searchTerms.get("dataConclusaoInicio")) : null;
-        LocalDate dataConclusaoFim = searchTerms.containsKey("dataConclusaoFim") && !searchTerms.get("dataConclusaoFim").isEmpty() ? LocalDate.parse(searchTerms.get("dataConclusaoFim")) : null;
-        Double valorTotalMin = searchTerms.containsKey("valorTotalMin") && !searchTerms.get("valorTotalMin").isEmpty() ? Double.parseDouble(searchTerms.get("valorTotalMin")) : null;
-        Double valorTotalMax = searchTerms.containsKey("valorTotalMax") && !searchTerms.get("valorTotalMax").isEmpty() ? Double.parseDouble(searchTerms.get("valorTotalMax")) : null;
-        Long produtoId = searchTerms.containsKey("produtoId") && !searchTerms.get("produtoId").isEmpty() ? Long.parseLong(searchTerms.get("produtoId")) : null;
+    @Transactional(readOnly = true)
+    public List<OrdemServico> search(OrdemServicoSearchDTO criteria) {
+        return osRepository.findAll(OrdemServicoSpecification.searchByCriteria(criteria));
+    }
+
+    // --- AÇÕES PRINCIPAIS DO FLUXO DE TRABALHO ---
+
+    @Override
+    public OrdemServico startExecution(Long osId) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
         
-        return ordemServicoRepository.searchOrdemServico(
-            osId, numeroOS, tipo, status, onibusId, 
-            dataAberturaInicio, dataAberturaFim, 
-            dataConclusaoInicio, dataConclusaoFim, 
-            valorTotalMin, valorTotalMax, 
-            produtoId);
-    }
-
-    @Override
-    public Optional<OrdemServico> buscarPorNumeroOS(String numeroOS) {
-        return ordemServicoRepository.findByNumeroOS(numeroOS);
-    }
-
-    @Override
-    public List<OrdemServico> buscarPorStatus(StatusOrdemServico status) {
-        return ordemServicoRepository.findByStatus(status);
-    }
-
-    @Override
-    public List<OrdemServico> buscarPorTipo(TipoOrdemServico tipo) {
-        return ordemServicoRepository.findByTipo(tipo);
-    }
-
-    @Override
-    public List<OrdemServico> buscarPorOnibus(Long onibusId) {
-        return ordemServicoRepository.findByOnibusId(onibusId);
-    }
-
-    @Override
-    public List<OrdemServico> buscarPorPeriodo(LocalDate dataInicio, LocalDate dataFim) {
-        return ordemServicoRepository.findByDataAberturaBetween(dataInicio, dataFim);
-    }
-
-    @Override
-    public boolean adicionarItem(Long ordemServicoId, Long produtoId, Integer quantidade) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        
-        if (os.getStatus() != StatusOrdemServico.ABERTA) {
-            throw new RuntimeException("Só é possível adicionar itens em OSs com status ABERTA");
-        }
-
-        Produto produto = produtoRepository.findById(produtoId)
-            .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
-
-        Optional<ItemOrdemServico> itemExistente = os.getItens().stream()
-            .filter(item -> item.getProduto().getId().equals(produtoId))
-            .findFirst();
-        
-        if (itemExistente.isPresent()) {
-            ItemOrdemServico item = itemExistente.get();
-            item.setQuantidade(item.getQuantidade() + quantidade);
-        } else {
-            ItemOrdemServico item = new ItemOrdemServico();
-            item.setOrdemServico(os);
-            item.setProduto(produto);
-            item.setQuantidade(quantidade);
-            item.setPrecoUnitario(produto.getPrecoUnitario());
-            os.getItens().add(item);
-        }
-        
-        ordemServicoRepository.save(os);
-        os.setValorTotal(calcularValorTotal(os.getId()));
-        
-        return true;
-    }
-
-    @Override
-    public boolean removerItem(Long ordemServicoId, Long produtoId) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        
-        if (os.getStatus() != StatusOrdemServico.ABERTA) {
-            throw new RuntimeException("Só é possível remover itens em OSs com status ABERTA");
-        }
-        
-        Optional<ItemOrdemServico> itemParaRemover = os.getItens().stream()
-            .filter(item -> item.getProduto().getId().equals(produtoId))
-            .findFirst();
-        
-        if (itemParaRemover.isPresent()) {
-            os.getItens().remove(itemParaRemover.get());
-            ordemServicoRepository.save(os);
-            
-            os.setValorTotal(calcularValorTotal(os.getId()));
-            
-            return true;
-        }
-        
-        throw new RuntimeException("Item não encontrado na OS");
-    }
-
-    @Override
-    public boolean verificarEstoqueSuficiente(Long ordemServicoId) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        
+        // 1. Reserva todos os itens no estoque
         for (ItemOrdemServico item : os.getItens()) {
-            if (!estoqueService.verificarDisponibilidade(item.getProduto().getId(), item.getQuantidade())) {
-                return false;
+            boolean sucesso = estoqueService.reservar(item.getProduto().getId(), item.getQuantidade());
+            if (!sucesso) {
+                throw new IllegalStateException("Estoque insuficiente para o produto: " + item.getProduto().getNome());
+            }
+        }
+
+        // 2. Muda o status do alvo principal (se aplicável) e do ônibus pai
+        Object alvo = os.getAlvo();
+        if (alvo instanceof Motor motor) {
+            if (motor.getOnibus() != null) motor.getOnibus().enviarParaManutencao();
+            motor.enviarParaManutencao();
+        } else if (alvo instanceof Cambio cambio) {
+            if (cambio.getOnibus() != null) cambio.getOnibus().enviarParaManutencao();
+            cambio.enviarParaManutencao();
+        } else if (alvo instanceof Pneu pneu) {
+            if (pneu.getOnibus() != null) pneu.getOnibus().enviarParaManutencao();
+            pneu.enviarParaManutencao();
+        } else if (alvo instanceof Onibus onibus) {
+            onibus.enviarParaManutencao();
+        }
+        
+        // 3. Muda o status da OS
+        os.iniciarExecucao();
+        return osRepository.save(os);
+    }
+
+    @Override
+    public OrdemServico finishExecution(Long osId) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
+        
+        // 1. Consome os itens que foram reservados
+        for (ItemOrdemServico item : os.getItens()) {
+            estoqueService.confirmarConsumoDeReserva(item.getProduto().getId(), item.getQuantidade());
+        }
+
+        // 2. Muda o status do alvo principal de volta para DISPONÍVEL
+        Object alvo = os.getAlvo();
+        if (alvo instanceof Motor motor) motor.retornarDaManutencao();
+        if (alvo instanceof Cambio cambio) cambio.retornarDaManutencao();
+        if (alvo instanceof Pneu pneu) pneu.retornarDaManutencao();
+        if (alvo instanceof Onibus onibus) onibus.retornarDaManutencao();
+        
+        // 3. Muda o status da OS
+        os.finalizar();
+        return osRepository.save(os);
+    }
+
+    @Override
+    public OrdemServico cancel(Long osId) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
+        
+        // Libera os itens que foram reservados, apenas se a OS já estava em execução
+        if (os.getStatus() == StatusOrdemServico.EM_EXECUCAO) {
+            for (ItemOrdemServico item : os.getItens()) {
+                estoqueService.liberarReserva(item.getProduto().getId(), item.getQuantidade());
             }
         }
         
-        return true;
+        os.cancelar();
+        return osRepository.save(os);
+    }
+
+    // --- GERENCIAMENTO DE ITENS ---
+
+    @Override
+    public OrdemServico addItem(Long osId, Long produtoId, Double quantidade, String descricao) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
+        Produto produto = produtoRepository.findById(produtoId).orElseThrow(() -> new EntityNotFoundException("Produto não encontrado."));
+        
+        os.adicionarItem(produto, quantidade, descricao);
+        return osRepository.save(os);
     }
 
     @Override
-    public Double calcularValorTotal(Long ordemServicoId) {
-        OrdemServico os = buscarPorId(ordemServicoId);
-        return os.getItens().stream()
-            .mapToDouble(item -> item.getPrecoUnitario() * item.getQuantidade())
-            .sum();
+    public OrdemServico removeItem(Long osId, Long itemId) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
+        ItemOrdemServico item = os.getItens().stream().filter(i -> i.getId().equals(itemId)).findFirst()
+            .orElseThrow(() -> new EntityNotFoundException("Item não encontrado nesta OS."));
+        
+        // Lógica de remover o item (o orphanRemoval=true cuidará da exclusão)
+        os.getItens().remove(item);
+        
+        return osRepository.save(os);
     }
 
     @Override
-    public List<OrdemServico> buscarOrdensEmAberto() {
-        return ordemServicoRepository.findOrdensEmAberto();
-    }
-
-    @Override
-    public List<OrdemServico> buscarOrdensEmExecucao() {
-        return ordemServicoRepository.findOrdensEmExecucao();
-    }
-
-    @Override
-    public List<OrdemServico> buscarOrdensFinalizadasNoPeriodo(LocalDate dataInicio, LocalDate dataFim) {
-        return ordemServicoRepository.findOrdensFinalizadasNoPeriodo(dataInicio, dataFim);
-    }
-
-    @Override
-    public List<OrdemServico> buscarOrdensComPrevisaoVencida() {
-        return ordemServicoRepository.findOrdensComPrevisaoVencida();
-    }
-
-    @Override
-    public String gerarProximoNumeroOS() {
-        Integer proximoNumero = ordemServicoRepository.findProximoNumeroOS();
-        return "OS-" + String.format("%04d", proximoNumero);
-    }
-
-    @Override
-    public List<Object[]> buscarEstatisticasPorStatus() {
-        return ordemServicoRepository.countOrdensPorStatus();
-    }
-
-    @Override
-    public List<Object[]> buscarEstatisticasPorTipo() {
-        return ordemServicoRepository.countOrdensPorTipo();
-    }
-
-    @Override
-    public Double calcularFaturamentoPeriodo(LocalDate dataInicio, LocalDate dataFim) {
-        return ordemServicoRepository.calcularValorTotalFinalizadoNoPeriodo(dataInicio, dataFim);
-    }
-
-    private void liberarReservas(OrdemServico os) {
-        for (ItemOrdemServico item : os.getItens()) {
-            try {
-                estoqueService.liberarReserva(
-                    item.getProduto().getId(), 
-                    item.getQuantidade()
-                );
-            } catch (Exception e) {
-                System.err.println("Erro ao liberar reserva do produto " + item.getProduto().getNome() + ": " + e.getMessage());
-            }
+    public OrdemServico updateItemQuantity(Long osId, Long itemId, Double novaQuantidade) {
+        OrdemServico os = findById(osId).orElseThrow(() -> new EntityNotFoundException("OS não encontrada."));
+        
+        if (os.getStatus() != StatusOrdemServico.ABERTA) {
+            throw new IllegalStateException("A quantidade de itens só pode ser alterada em uma OS ABERTA.");
         }
+        
+        ItemOrdemServico item = os.getItens().stream().filter(i -> i.getId().equals(itemId)).findFirst()
+            .orElseThrow(() -> new EntityNotFoundException("Item não encontrado nesta OS."));
+        
+        item.setQuantidade(novaQuantidade);
+        
+        return osRepository.save(os);
     }
-    
 }

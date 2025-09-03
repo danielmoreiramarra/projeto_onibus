@@ -1,51 +1,34 @@
 package com.proj_db.onibus.service;
 
+import com.proj_db.onibus.dto.OrdemServicoCreateDTO;
+import com.proj_db.onibus.dto.OrdemServicoSearchDTO;
+import com.proj_db.onibus.dto.OrdemServicoUpdateDTO;
+import com.proj_db.onibus.model.OrdemServico;
+
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import com.proj_db.onibus.model.OrdemServico;
-import com.proj_db.onibus.model.OrdemServico.StatusOrdemServico;
-import com.proj_db.onibus.model.OrdemServico.TipoOrdemServico;
-
+// <<< Imports para os DTOs externos que estão na pasta /dto
 public interface OrdemServicoService {
     
-    OrdemServico criarOrdemServico(OrdemServico ordemServico);
-    OrdemServico atualizarOrdemServico(Long id, OrdemServico ordemServicoAtualizada);
-    void excluirOrdemServico(Long id);
+    // --- CRUD e Ciclo de Vida ---
+    OrdemServico create(OrdemServicoCreateDTO dto);
+    OrdemServico updateInfo(Long osId, OrdemServicoUpdateDTO dto);
+    void delete(Long osId); // Apenas se CANCELADA
+
+    Optional<OrdemServico> findById(Long id);
+    List<OrdemServico> findAll();
+    List<OrdemServico> search(OrdemServicoSearchDTO criteria);
+
+    // --- Ações Principais do Fluxo de Trabalho ---
+    OrdemServico startExecution(Long osId);
+    OrdemServico finishExecution(Long osId);
+    OrdemServico cancel(Long osId);
+
+    // --- Gerenciamento de Itens (através da OS) ---
+    OrdemServico addItem(Long osId, Long produtoId, Double quantidade, String descricao);
+    OrdemServico removeItem(Long osId, Long itemId);
+    OrdemServico updateItemQuantity(Long osId, Long itemId, Double novaQuantidade);
     
-    OrdemServico buscarPorId(Long id);
-    List<OrdemServico> buscarTodas();
-    Optional<OrdemServico> buscarPorNumeroOS(String numeroOS);
-    
-    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
-    List<OrdemServico> searchOrdemServico(Map<String, String> searchTerms);
-    
-    List<OrdemServico> buscarPorStatus(StatusOrdemServico status);
-    List<OrdemServico> buscarPorTipo(TipoOrdemServico tipo);
-    List<OrdemServico> buscarPorOnibus(Long onibusId);
-    List<OrdemServico> buscarPorPeriodo(LocalDate dataInicio, LocalDate dataFim);
-    
-    // ✅ Retornam a entidade atualizada para o cliente
-    OrdemServico iniciarExecucao(Long ordemServicoId);
-    OrdemServico finalizarOrdemServico(Long ordemServicoId);
-    OrdemServico cancelarOrdemServico(Long ordemServicoId);
-    OrdemServico cancelarOrdemServico(Long ordemServicoId, String motivo);
-    
-    boolean adicionarItem(Long ordemServicoId, Long produtoId, Integer quantidade);
-    boolean removerItem(Long ordemServicoId, Long produtoId);
-    
-    boolean verificarEstoqueSuficiente(Long ordemServicoId);
-    Double calcularValorTotal(Long ordemServicoId);
-    
-    List<OrdemServico> buscarOrdensEmAberto();
-    List<OrdemServico> buscarOrdensEmExecucao();
-    List<OrdemServico> buscarOrdensFinalizadasNoPeriodo(LocalDate dataInicio, LocalDate dataFim);
-    List<OrdemServico> buscarOrdensComPrevisaoVencida();
-    
-    String gerarProximoNumeroOS();
-    List<Object[]> buscarEstatisticasPorStatus();
-    List<Object[]> buscarEstatisticasPorTipo();
-    Double calcularFaturamentoPeriodo(LocalDate dataInicio, LocalDate dataFim);
 }

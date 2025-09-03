@@ -1,43 +1,47 @@
 package com.proj_db.onibus.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import com.proj_db.onibus.dto.MotorCreateDTO;
+import com.proj_db.onibus.dto.MotorUpdateDTO;
 import com.proj_db.onibus.model.Motor;
 
 public interface MotorService {
     
-    Motor criarMotor(Motor motor);
-    Motor atualizarMotor(Long id, Motor motorAtualizado);
-    void excluirMotor(Long id);
-    
-    Optional<Motor> buscarPorId(Long id);
-    List<Motor> buscarTodos();
-    Optional<Motor> buscarPorNumeroSerie(String numeroSerie);
-    Optional<Motor> buscarPorCodigoFabricacao(String codigoFabricacao);
-    
-    // ✅ Removido métodos redundantes como buscarDisponiveis() e buscarEmUso()
-    // A busca combinada já cobre todos esses casos.
-    
-    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
-    List<Motor> searchMotor(Map<String, String> searchTerms);
-    
-    Motor enviarParaManutencao(Long motorId);
-    Motor retornarDeManutencao(Long motorId);
-    
-    Motor registrarRevisao(Long motorId);
-    
-    boolean estaEmGarantia(Long motorId);
-    
-    boolean existeNumeroSerie(String numeroSerie);
-    boolean existeCodigoFabricacao(String codigoFabricacao);
-    
-    List<Motor> buscarMotoresParaRevisao();
-    List<Motor> buscarMotoresComGarantiaPrestesVencer();
-    
-    List<Object[]> countMotoresPorTipo();
-    List<Object[]> countMotoresPorStatus();
-    List<Object[]> avgPotenciaPorMarca();
+    // --- CRUD Básico ---
+    Motor save(MotorCreateDTO motor);
+    Motor update(Long id, MotorUpdateDTO motorDetails);
+    void deleteById(Long id);
+    Optional<Motor> findById(Long id);
+    List<Motor> findAll();
 
+    // --- Buscas Específicas ---
+    Optional<Motor> findByNumeroSerie(String numeroSerie);
+    List<Motor> search(MotorSearchDTO criteria);
+
+    // --- Lógica de Negócio (Ciclo de Vida) ---
+    Motor enviarParaManutencao(Long motorId);
+    Motor retornarDaManutencao(Long motorId);
+    Motor enviarParaRevisao(Long motorId);
+    Motor retornarDaRevisao(Long motorId);
+
+    // --- Lógica de OS Preventiva ---
+    void verificarEGerarOsPreventivas();
+
+    // --- Métodos de Relatório ---
+    List<Object[]> countByTipo();
+    List<Object[]> countByStatus();
+    
+    // DTO (Data Transfer Object) para a busca
+    record MotorSearchDTO(
+        String marca,
+        String modelo,
+        String numeroSerie,
+        String tipoOleo,
+        Motor.TipoMotor tipo,
+        Motor.StatusMotor status,
+        Integer potenciaMin,
+        Integer potenciaMax
+    ) {}
 }

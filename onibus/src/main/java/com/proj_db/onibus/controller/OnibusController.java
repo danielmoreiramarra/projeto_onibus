@@ -1,9 +1,7 @@
 package com.proj_db.onibus.controller;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,8 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.proj_db.onibus.dto.OnibusCreateDTO;
+import com.proj_db.onibus.dto.OnibusResponseDTO;
+import com.proj_db.onibus.dto.OnibusUpdateDTO;
 import com.proj_db.onibus.model.Onibus;
-import com.proj_db.onibus.model.Onibus.StatusOnibus;
 import com.proj_db.onibus.model.Pneu.PosicaoPneu;
 import com.proj_db.onibus.service.OnibusService;
 
@@ -35,233 +35,123 @@ public class OnibusController {
     @Autowired
     private OnibusService onibusService;
 
+    // --- Endpoints CRUD ---
+
     @PostMapping
-    public ResponseEntity<?> criarOnibus(@Valid @RequestBody Onibus onibus) {
-        try {
-            Onibus novoOnibus = onibusService.criarOnibus(onibus);
-            return ResponseEntity.status(HttpStatus.CREATED).body(novoOnibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro interno ao criar ônibus: " + e.getMessage());
-        }
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Onibus>> listarTodos() {
-        try {
-            List<Onibus> onibus = onibusService.buscarTodos();
-            return ResponseEntity.ok(onibus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
-        try {
-            Optional<Onibus> onibus = onibusService.buscarPorId(id);
-            return onibus.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar ônibus: " + e.getMessage());
-        }
+    public ResponseEntity<OnibusResponseDTO> create(@Valid @RequestBody OnibusCreateDTO dto) {
+        Onibus onibusSalvo = onibusService.save(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new OnibusResponseDTO(onibusSalvo));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizarOnibus(
-            @PathVariable Long id, 
-            @Valid @RequestBody Onibus onibusAtualizado) {
-        try {
-            Onibus onibus = onibusService.atualizarOnibus(id, onibusAtualizado);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao atualizar ônibus: " + e.getMessage());
-        }
+    public ResponseEntity<OnibusResponseDTO> update(@PathVariable Long id, @Valid @RequestBody OnibusUpdateDTO dto) {
+        Onibus onibusAtualizado = onibusService.update(id, dto);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibusAtualizado));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletarOnibus(@PathVariable Long id) {
-        try {
-            onibusService.excluirOnibus(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao deletar ônibus: " + e.getMessage());
-        }
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        onibusService.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
-    // ✅ NOVO ENDPOINT DE BUSCA COMBINADA
+    // --- Endpoints de Consulta ---
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OnibusResponseDTO> findById(@PathVariable Long id) {
+        return onibusService.findById(id)
+                .map(OnibusResponseDTO::new)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OnibusResponseDTO>> findAll() {
+        List<OnibusResponseDTO> dtos = onibusService.findAll().stream()
+                .map(OnibusResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
     @GetMapping("/search")
-    public ResponseEntity<?> searchOnibus(@RequestParam Map<String, String> searchTerms) {
-        try {
-            List<Onibus> onibus = onibusService.searchOnibus(searchTerms);
-            return ResponseEntity.ok(onibus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao realizar a busca: " + e.getMessage());
-        }
+    public ResponseEntity<List<OnibusResponseDTO>> search(
+            @RequestParam(required = false) String chassi,
+            @RequestParam(required = false) String placa,
+            @RequestParam(required = false) String numeroFrota,
+            @RequestParam(required = false) String marca,
+            @RequestParam(required = false) String modelo,
+            @RequestParam(required = false) Onibus.StatusOnibus status,
+            @RequestParam(required = false) Long motorId,
+            @RequestParam(required = false) Long cambioId,
+            @RequestParam(required = false) Long pneuId
+    ) {
+        OnibusService.OnibusSearchDTO criteria = new OnibusService.OnibusSearchDTO(chassi, placa, numeroFrota, marca, modelo, status, motorId, cambioId, pneuId);
+        List<OnibusResponseDTO> dtos = onibusService.search(criteria).stream()
+                .map(OnibusResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
-    // ✅ ENDPOINT DE BUSCA POR STATUS (RE-ADICIONADO)
-    @GetMapping("/status/{status}")
-    public ResponseEntity<?> buscarPorStatus(@PathVariable StatusOnibus status) {
-        try {
-            List<Onibus> onibus = onibusService.buscarPorStatus(status);
-            return ResponseEntity.ok(onibus);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar por status: " + e.getMessage());
-        }
+    // --- Endpoints de Ações de Negócio ---
+
+    @PostMapping("/{id}/registrar-viagem")
+    public ResponseEntity<OnibusResponseDTO> registrarViagem(@PathVariable Long id, @RequestParam Double kmPercorridos) {
+        Onibus onibus = onibusService.registrarViagem(id, kmPercorridos);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @PatchMapping("/{id}/colocar-em-manutencao")
-    public ResponseEntity<?> colocarEmManutencao(@PathVariable Long id) {
-        try {
-            Onibus onibus = onibusService.colocarEmManutencao(id);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao colocar em manutenção: " + e.getMessage());
-        }
+    @PatchMapping("/{id}/colocar-em-operacao")
+    public ResponseEntity<OnibusResponseDTO> colocarEmOperacao(@PathVariable Long id) {
+        Onibus onibus = onibusService.colocarEmOperacao(id);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @PatchMapping("/{id}/retirar-da-manutencao")
-    public ResponseEntity<?> retirarDeManutencao(@PathVariable Long id) {
-        try {
-            Onibus onibus = onibusService.retirarDeManutencao(id);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao retirar da manutenção: " + e.getMessage());
-        }
+    @PatchMapping("/{id}/retirar-de-operacao")
+    public ResponseEntity<OnibusResponseDTO> retirarDeOperacao(@PathVariable Long id) {
+        Onibus onibus = onibusService.retirarDeOperacao(id);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
+    }
+    
+    // --- Endpoints de Gerenciamento de Componentes ---
+
+    @PostMapping("/{onibusId}/motor/{motorId}") // POST para adicionar um novo recurso (relação)
+    public ResponseEntity<OnibusResponseDTO> instalarMotor(@PathVariable Long onibusId, @PathVariable Long motorId) {
+        Onibus onibus = onibusService.instalarMotor(onibusId, motorId);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @PatchMapping("/{id}/aposentar")
-    public ResponseEntity<?> aposentarOnibus(@PathVariable Long id) {
-        try {
-            Onibus onibus = onibusService.aposentarOnibus(id);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao aposentar ônibus: " + e.getMessage());
-        }
+    @DeleteMapping("/{onibusId}/motor") // DELETE para remover um recurso (relação)
+    public ResponseEntity<OnibusResponseDTO> removerMotor(@PathVariable Long onibusId) {
+        Onibus onibus = onibusService.removerMotor(onibusId);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @PatchMapping("/{id}/vender")
-    public ResponseEntity<?> venderOnibus(@PathVariable Long id) {
-        try {
-            Onibus onibus = onibusService.venderOnibus(id);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao vender ônibus: " + e.getMessage());
-        }
+    @PostMapping("/{onibusId}/cambio/{cambioId}")
+    public ResponseEntity<OnibusResponseDTO> instalarCambio(@PathVariable Long onibusId, @PathVariable Long cambioId) {
+        Onibus onibus = onibusService.instalarCambio(onibusId, cambioId);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @GetMapping("/{id}/disponibilidade")
-    public ResponseEntity<?> verificarDisponibilidade(
-            @PathVariable Long id,
-            @RequestParam LocalDate dataInicio,
-            @RequestParam LocalDate dataFim) {
-        try {
-            boolean disponivel = onibusService.verificarDisponibilidade(id, dataInicio, dataFim);
-            return ResponseEntity.ok(disponivel);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao verificar disponibilidade: " + e.getMessage());
-        }
+    @DeleteMapping("/{onibusId}/cambio")
+    public ResponseEntity<OnibusResponseDTO> removerCambio(@PathVariable Long onibusId) {
+        Onibus onibus = onibusService.removerCambio(onibusId);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @PatchMapping("/{onibusId}/instalar/motor/{motorId}")
-    public ResponseEntity<?> instalarMotor(@PathVariable Long onibusId, @PathVariable Long motorId) {
-        try {
-            Onibus onibus = onibusService.instalarMotor(onibusId, motorId);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
-    }
-
-    @PatchMapping("/{onibusId}/remover/motor/{motorId}")
-    public ResponseEntity<?> removerMotor(@PathVariable Long onibusId, @PathVariable Long motorId) {
-        try {
-            Onibus onibus = onibusService.removerMotor(onibusId, motorId);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
-    }
-
-    @PatchMapping("/{onibusId}/instalar/cambio/{cambioId}")
-    public ResponseEntity<?> instalarCambio(@PathVariable Long onibusId, @PathVariable Long cambioId) {
-        try {
-            Onibus onibus = onibusService.instalarCambio(onibusId, cambioId);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
-    }
-
-    @PatchMapping("/{onibusId}/remover/cambio/{cambioId}")
-    public ResponseEntity<?> removerCambio(@PathVariable Long onibusId, @PathVariable Long cambioId) {
-        try {
-            Onibus onibus = onibusService.removerCambio(onibusId, cambioId);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
-    }
-
-    @PatchMapping("/{onibusId}/instalar/pneu/{pneuId}")
-    public ResponseEntity<?> instalarPneu(
+    @PostMapping("/{onibusId}/pneu/{pneuId}")
+    public ResponseEntity<OnibusResponseDTO> instalarPneu(
             @PathVariable Long onibusId,
             @PathVariable Long pneuId,
             @RequestParam PosicaoPneu posicao) {
-        try {
-            Onibus onibus = onibusService.instalarPneu(onibusId, pneuId, posicao);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
+        Onibus onibus = onibusService.instalarPneu(onibusId, pneuId, posicao);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 
-    @PatchMapping("/{onibusId}/remover/pneu/{pneuId}")
-    public ResponseEntity<?> removerPneu(@PathVariable Long onibusId, @PathVariable Long pneuId) {
-        try {
-            Onibus onibus = onibusService.removerPneu(onibusId, pneuId);
-            return ResponseEntity.ok(onibus);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
+    @DeleteMapping("/{onibusId}/pneu")
+    public ResponseEntity<OnibusResponseDTO> removerPneu(
+            @PathVariable Long onibusId,
+            @RequestParam PosicaoPneu posicao) {
+        Onibus onibus = onibusService.removerPneu(onibusId, posicao);
+        return ResponseEntity.ok(new OnibusResponseDTO(onibus));
     }
 }

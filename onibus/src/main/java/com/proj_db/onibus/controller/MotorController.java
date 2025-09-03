@@ -1,8 +1,7 @@
 package com.proj_db.onibus.controller;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.proj_db.onibus.dto.MotorCreateDTO;
+import com.proj_db.onibus.dto.MotorResponseDTO;
+import com.proj_db.onibus.dto.MotorUpdateDTO;
 import com.proj_db.onibus.model.Motor;
 import com.proj_db.onibus.service.MotorService;
 
@@ -26,178 +28,93 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/motores")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") // Em produção, restrinja para o domínio do seu frontend
 public class MotorController {
 
     @Autowired
     private MotorService motorService;
 
+    // --- Endpoints CRUD ---
+
     @PostMapping
-    public ResponseEntity<?> criarMotor(@Valid @RequestBody Motor motor) {
-        try {
-            Motor novoMotor = motorService.criarMotor(motor);
-            return ResponseEntity.status(HttpStatus.CREATED).body(novoMotor);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro interno ao criar motor: " + e.getMessage());
-        }
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Motor>> listarTodos() {
-        try {
-            List<Motor> motores = motorService.buscarTodos();
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
-        try {
-            Optional<Motor> motor = motorService.buscarPorId(id);
-            return motor.map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar motor: " + e.getMessage());
-        }
+    public ResponseEntity<MotorResponseDTO> create(@Valid @RequestBody MotorCreateDTO dto) {
+        // O Controller agora só passa o DTO para o Serviço, que faz todo o trabalho.
+        Motor motorSalvo = motorService.save(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new MotorResponseDTO(motorSalvo));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizarMotor(
-            @PathVariable Long id, 
-            @Valid @RequestBody Motor motorAtualizado) {
-        try {
-            Motor motor = motorService.atualizarMotor(id, motorAtualizado);
-            return ResponseEntity.ok(motor);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao atualizar motor: " + e.getMessage());
-        }
+    public ResponseEntity<MotorResponseDTO> update(@PathVariable Long id, @Valid @RequestBody MotorUpdateDTO dto) {
+        Motor motorAtualizado = motorService.update(id, dto);
+        return ResponseEntity.ok(new MotorResponseDTO(motorAtualizado));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletarMotor(@PathVariable Long id) {
-        try {
-            motorService.excluirMotor(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao deletar motor: " + e.getMessage());
-        }
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        motorService.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
-    // ✅ NOVO ENDPOINT DE BUSCA COMBINADA
-    @GetMapping("/search")
-    public ResponseEntity<?> searchMotor(@RequestParam Map<String, String> searchTerms) {
-        try {
-            List<Motor> motores = motorService.searchMotor(searchTerms);
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao realizar a busca: " + e.getMessage());
-        }
+    // --- Endpoints de Consulta ---
+
+    @GetMapping("/{id}")
+    public ResponseEntity<MotorResponseDTO> findById(@PathVariable Long id) {
+        return motorService.findById(id)
+                .map(MotorResponseDTO::new)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
+
+    @GetMapping
+    public ResponseEntity<List<MotorResponseDTO>> findAll() {
+        List<MotorResponseDTO> dtos = motorService.findAll().stream()
+                .map(MotorResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+    
+    @GetMapping("/search")
+    public ResponseEntity<List<MotorResponseDTO>> search(
+            // Mapeia os parâmetros da URL para um DTO de busca, tornando a API mais clara
+            @RequestParam(required = false) String marca,
+            @RequestParam(required = false) String modelo,
+            @RequestParam(required = false) String numeroSerie,
+            @RequestParam(required = false) String tipoOleo,
+            @RequestParam(required = false) Motor.TipoMotor tipo,
+            @RequestParam(required = false) Motor.StatusMotor status,
+            @RequestParam(required = false) Integer potenciaMin,
+            @RequestParam(required = false) Integer potenciaMax
+    ) {
+        MotorService.MotorSearchDTO criteria = new MotorService.MotorSearchDTO(marca, modelo, numeroSerie, tipoOleo, tipo, status, potenciaMin, potenciaMax);
+        List<MotorResponseDTO> dtos = motorService.search(criteria).stream()
+                .map(MotorResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    // --- Endpoints de Ações de Negócio ---
 
     @PatchMapping("/{id}/enviar-manutencao")
-    public ResponseEntity<?> enviarParaManutencao(@PathVariable Long id) {
-        try {
-            Motor motor = motorService.enviarParaManutencao(id);
-            return ResponseEntity.ok(motor);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao enviar para manutenção: " + e.getMessage());
-        }
+    public ResponseEntity<MotorResponseDTO> enviarParaManutencao(@PathVariable Long id) {
+        Motor motor = motorService.enviarParaManutencao(id);
+        return ResponseEntity.ok(new MotorResponseDTO(motor));
     }
-
+    
     @PatchMapping("/{id}/retornar-manutencao")
-    public ResponseEntity<?> retornarDeManutencao(@PathVariable Long id) {
-        try {
-            Motor motor = motorService.retornarDeManutencao(id);
-            return ResponseEntity.ok(motor);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao retornar da manutenção: " + e.getMessage());
-        }
+    public ResponseEntity<MotorResponseDTO> retornarDeManutencao(@PathVariable Long id) {
+        Motor motor = motorService.retornarDaManutencao(id);
+        return ResponseEntity.ok(new MotorResponseDTO(motor));
     }
 
-    @PatchMapping("/{id}/registrar-revisao")
-    public ResponseEntity<?> registrarRevisao(@PathVariable Long id) {
-        try {
-            Motor motor = motorService.registrarRevisao(id);
-            return ResponseEntity.ok(motor);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao registrar revisão: " + e.getMessage());
-        }
+    @PatchMapping("/{id}/enviar-revisao")
+    public ResponseEntity<MotorResponseDTO> enviarParaRevisao(@PathVariable Long id) {
+        Motor motor = motorService.enviarParaRevisao(id);
+        return ResponseEntity.ok(new MotorResponseDTO(motor));
     }
 
-    @GetMapping("/{id}/em-garantia")
-    public ResponseEntity<?> estaEmGarantia(@PathVariable Long id) {
-        try {
-            boolean emGarantia = motorService.estaEmGarantia(id);
-            return ResponseEntity.ok(emGarantia);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao verificar garantia: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/existe-numero-serie/{numeroSerie}")
-    public ResponseEntity<Boolean> existeNumeroSerie(@PathVariable String numeroSerie) {
-        try {
-            boolean existe = motorService.existeNumeroSerie(numeroSerie);
-            return ResponseEntity.ok(existe);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @GetMapping("/existe-codigo-fabricacao/{codigo}")
-    public ResponseEntity<Boolean> existeCodigoFabricacao(@PathVariable String codigo) {
-        try {
-            boolean existe = motorService.existeCodigoFabricacao(codigo);
-            return ResponseEntity.ok(existe);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @GetMapping("/para-revisao")
-    public ResponseEntity<?> buscarMotoresParaRevisao() {
-        try {
-            List<Motor> motores = motorService.buscarMotoresParaRevisao();
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar motores para revisão: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/garantia-prestes-vencer")
-    public ResponseEntity<?> buscarMotoresComGarantiaPrestesVencer() {
-        try {
-            List<Motor> motores = motorService.buscarMotoresComGarantiaPrestesVencer();
-            return ResponseEntity.ok(motores);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao buscar motores com garantia prestes a vencer: " + e.getMessage());
-        }
+    @PatchMapping("/{id}/retornar-revisao")
+    public ResponseEntity<MotorResponseDTO> retornarDeRevisao(@PathVariable Long id) {
+        Motor motor = motorService.retornarDaRevisao(id);
+        return ResponseEntity.ok(new MotorResponseDTO(motor));
     }
 }

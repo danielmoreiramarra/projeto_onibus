@@ -1,51 +1,39 @@
 package com.proj_db.onibus.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+import com.proj_db.onibus.dto.ProdutoCreateDTO;
+import com.proj_db.onibus.dto.ProdutoUpdateDTO;
 import com.proj_db.onibus.model.Produto;
-import com.proj_db.onibus.model.Produto.Categoria;
-import com.proj_db.onibus.model.Produto.StatusProduto;
-import com.proj_db.onibus.model.Produto.UnidadeMedida;
 
 public interface ProdutoService {
     
-    Produto criarProduto(Produto produto);
-    Produto atualizarProduto(Long id, Produto produtoAtualizado);
-    void excluirProduto(Long id);
+    // --- CRUD e Lógica de Negócio ---
+    Produto save(ProdutoCreateDTO produto);
+    Produto update(Long id, ProdutoUpdateDTO produtoDetails);
+    Produto updatePrice(Long id, Double novoPreco);
+    void archiveById(Long id); // "Soft delete" - inativa o produto
     
-    Optional<Produto> buscarPorId(Long id);
-    List<Produto> buscarTodos();
-    Optional<Produto> buscarPorCodigoInterno(String codigoInterno);
-    Optional<Produto> buscarPorCodigoBarras(String codigoBarras);
-    
-    List<Produto> buscarPorStatus(StatusProduto status);
-    List<Produto> buscarPorMarca(String marca);
-    List<Produto> buscarPorCategoria(Categoria categoria);
-    List<Produto> buscarPorUnidadeMedida(UnidadeMedida unidadeMedida);
-    List<Produto> buscarPorNome(String nome);
-    
-    // ✅ NOVO MÉTODO: Busca combinada para todos os campos
-    List<Produto> searchProduto(Map<String, String> searchTerms);
-    
-    List<Produto> buscarProdutosAtivos();
-    List<Produto> buscarProdutosComEstoqueAbaixoMinimo();
-    List<Produto> buscarProdutosNuncaUtilizados();
-    List<Produto> buscarProdutosSemMovimento();
-    
-    boolean existeCodigoInterno(String codigoInterno);
-    boolean existeCodigoBarras(String codigoBarras);
-    
-    String gerarProximoCodigoInterno();
-    List<Object[]> buscarProdutosMaisUtilizados();
-    List<Object[]> buscarProdutosPorGiro();
-    List<Object[]> buscarEstatisticasPorCategoria();
+    Optional<Produto> findById(Long id);
+    List<Produto> findAll();
+    Optional<Produto> findByCodigoInterno(String codigoInterno);
+    List<Produto> search(ProdutoSearchDTO criteria);
 
-    // ✅ NOVOS MÉTODOS DE RELATÓRIO
-    List<Object[]> countProdutosPorStatus();
-    List<Object[]> countProdutosPorUnidadeMedida();
-    List<Object[]> avgPrecoPorCategoria();
-    List<Object[]> findProdutosComMaiorValorEstoque();
-    List<Object[]> findProdutosMelhorCustoBeneficio();
+    String gerarProximoCodigoInterno();
+
+    // --- Métodos de Relatório ---
+    List<Produto> findProdutosComEstoqueAbaixoMinimo();
+    List<Object[]> findProdutosMaisUtilizados();
+    List<Object[]> countByCategoria();
+    // ... outros métodos de relatório podem ser adicionados aqui
+    
+    // DTO para a busca
+    record ProdutoSearchDTO(
+        String nome,
+        String marca,
+        String codigoInterno,
+        Produto.Categoria categoria,
+        Produto.StatusProduto status
+    ) {}
 }
