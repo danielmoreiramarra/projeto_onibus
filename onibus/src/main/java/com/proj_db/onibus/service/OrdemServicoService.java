@@ -1,13 +1,12 @@
 package com.proj_db.onibus.service;
 
+import java.util.List;
+import java.util.Optional;
+
 import com.proj_db.onibus.dto.OrdemServicoCreateDTO;
 import com.proj_db.onibus.dto.OrdemServicoSearchDTO;
 import com.proj_db.onibus.dto.OrdemServicoUpdateDTO;
 import com.proj_db.onibus.model.OrdemServico;
-
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
 
 // <<< Imports para os DTOs externos que estão na pasta /dto
 public interface OrdemServicoService {

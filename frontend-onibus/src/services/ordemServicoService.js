@@ -1,24 +1,24 @@
-// src/services/ordemServicoService.js
 import api from './api';
 
 export const ordemServicoService = {
-  // Métodos CRUD básicos (já existiam)
+  // --- CRUD e Ciclo de Vida da OS ---
+  create: (osCreateDTO) => api.post('/ordens-servico', osCreateDTO),
+  updateInfo: (id, osUpdateDTO) => api.put(`/ordens-servico/${id}`, osUpdateDTO),
+  delete: (id) => api.delete(`/ordens-servico/${id}`),
+  
+  // --- Consultas ---
   getAll: () => api.get('/ordens-servico'),
   getById: (id) => api.get(`/ordens-servico/${id}`),
-  create: (ordemServico) => api.post('/ordens-servico', ordemServico),
-  update: (id, ordemServico) => api.put(`/ordens-servico/${id}`, ordemServico),
-  delete: (id) => api.delete(`/ordens-servico/${id}`),
+  search: (terms) => api.get('/ordens-servico/search', { params: terms }),
 
-  // ✅ NOVOS MÉTODOS DE BUSCA E GESTÃO
-  getByStatus: (status) => api.get(`/ordens-servico/status/${status}`),
-  getEmAberto: () => api.get('/ordens-servico/em-aberto'),
-  getEmExecucao: () => api.get('/ordens-servico/em-execucao'),
-  getFinalizadasNoPeriodo: (dataInicio, dataFim) =>
-    api.get(`/ordens-servico/finalizadas-periodo`, {
-      params: { dataInicio, dataFim },
-    }),
-  getComPrevisaoVencida: () => api.get('/ordens-servico/previsao-vencida'),
-  iniciarExecucao: (id) => api.patch(`/ordens-servico/${id}/iniciar-execucao`),
-  finalizar: (id) => api.patch(`/ordens-servico/${id}/finalizar`),
-  cancelar: (id) => api.patch(`/ordens-servico/${id}/cancelar`),
+  // --- Ações de Fluxo de Trabalho ---
+  startExecution: (id) => api.patch(`/ordens-servico/${id}/start`),
+  finishExecution: (id) => api.patch(`/ordens-servico/${id}/finish`),
+  cancel: (id) => api.patch(`/ordens-servico/${id}/cancel`),
+
+  // --- Gerenciamento de Itens (através da OS) ---
+  addItem: (osId, itemDTO) => api.post(`/ordens-servico/${osId}/itens`, itemDTO),
+  removeItem: (osId, itemId) => api.delete(`/ordens-servico/${osId}/itens/${itemId}`),
+  updateItemQuantity: (osId, itemId, itemDTO) => api.put(`/ordens-servico/${osId}/itens/${itemId}`, itemDTO),
 };
+

@@ -66,9 +66,6 @@ public class Produto {
     @CollectionTable(name = "produto_historico_preco", joinColumns = @JoinColumn(name = "produto_id"))
     private List<RegistroContabil> historicoPrecoUnitario = new ArrayList<>();
 
-    @Column(name = "localizacao", length = 50)
-    private String localizacao;
-
     @Column(name = "marca", nullable = false, length = 100)
     @NotBlank(message = "Marca do produto é obrigatória")
     private String marca;

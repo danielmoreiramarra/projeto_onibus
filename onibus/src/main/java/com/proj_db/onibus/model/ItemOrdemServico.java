@@ -79,7 +79,7 @@ public class ItemOrdemServico {
      * Calcula o valor total do item. Renomeado para getSubtotal por clareza.
      */
     @Transient // <<< AJUSTE: Boa prática para campos calculados
-    public Double getSubtotal() {
+    public Double subtotal() {
         if (precoUnitarioRegistrado == null || quantidade == null) {
             return 0.0;
         }

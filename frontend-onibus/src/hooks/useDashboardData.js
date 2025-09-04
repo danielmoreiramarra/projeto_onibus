@@ -1,5 +1,4 @@
-// src/hooks/useDashboardData.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { onibusService } from '../services/onibusService';
 import { ordemServicoService } from '../services/ordemServicoService';
 import { estoqueService } from '../services/estoqueService';
@@ -14,15 +13,22 @@ const useDashboardData = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            // ✅ Nomes dos métodos corrigidos
-            const onibusTotalResponse = await onibusService.getAll();
-            const onibusEmOperacaoResponse = await onibusService.getByStatus('EM_OPERACAO');
-            const osEmExecucaoResponse = await ordemServicoService.getEmExecucao();
-            const estoqueAbaixoMinimoResponse = await estoqueService.getAbaixoMinimo();
+            // <<< MELHORIA: Executa todas as chamadas em paralelo
+            const [
+                onibusTotalResponse,
+                onibusEmOperacaoResponse,
+                osEmExecucaoResponse,
+                estoqueAbaixoMinimoResponse,
+            ] = await Promise.all([
+                onibusService.getAll(),
+                onibusService.search({ status: 'EM_OPERACAO' }),
+                ordemServicoService.search({ status: 'EM_EXECUCAO' }),
+                estoqueService.getEstoqueAbaixoDoMinimo(),
+            ]);
 
             setData({
                 totalOnibus: onibusTotalResponse.data.length,
@@ -36,11 +42,11 @@ const useDashboardData = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []); // useCallback com array vazio, pois a função não depende de props
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     return { data, loading, error, refetch: fetchData };
 };

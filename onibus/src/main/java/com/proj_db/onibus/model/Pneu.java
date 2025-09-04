@@ -3,7 +3,6 @@ package com.proj_db.onibus.model;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -23,7 +22,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -45,27 +43,44 @@ public class Pneu {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    // ... (outros atributos como anoFabricacao, codigoFabricacao, etc. permanecem iguais)
     @Column(name = "ano_fabricacao", nullable = false)
+    @NotNull
     private Integer anoFabricacao;
+
     @Column(name = "codigo_fabricacao", unique = true, nullable = false, length = 50)
+    @NotBlank
     private String codigoFabricacao;
+
     @Column(name = "data_compra", nullable = false)
+    @NotBlank
     private LocalDate dataCompra;
+
     @Column(name = "data_instalacao")
     private LocalDate dataInstalacao;
+
     @Column(name = "km_rodados", nullable = false)
+    @NotNull
     @PositiveOrZero
     private Double kmRodados = 0.0;
+
     @Column(name = "marca", nullable = false, length = 100)
+    @NotBlank
     private String marca;
+
     @Column(name = "medida", nullable = false, length = 20)
+    @NotBlank
     private String medida;
+
     @Column(name = "modelo", nullable = false, length = 100)
+    @NotBlank
     private String modelo;
+
     @Column(name = "numero_serie", unique = true, nullable = false, length = 100)
+    @NotBlank
     private String numeroSerie;
+
     @Column(name = "periodo_garantia_meses", nullable = false)
+    @NotNull
     private Integer periodoGarantiaMeses = 24;
     
     @ManyToOne
@@ -79,21 +94,24 @@ public class Pneu {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
+    @NotNull
     private StatusPneu status = StatusPneu.NOVO;
 
     @ElementCollection
     @CollectionTable(name = "pneu_historico_envio_manutencao", joinColumns = @JoinColumn(name = "pneu_id"))
     private List<LocalDate> historicoEnvioManutencao = new ArrayList<>();
+
     @ElementCollection
     @CollectionTable(name = "pneu_historico_envio_reforma", joinColumns = @JoinColumn(name = "pneu_id"))
     private List<LocalDate> historicoEnvioReforma = new ArrayList<>();
+
     @ElementCollection
     @CollectionTable(name = "pneu_historico_retorno_manutencao", joinColumns = @JoinColumn(name = "pneu_id"))
     private List<LocalDate> historicoRetornoManutencao = new ArrayList<>();
+
     @ElementCollection
     @CollectionTable(name = "pneu_historico_retorno_reforma", joinColumns = @JoinColumn(name = "pneu_id"))
     private List<LocalDate> historicoRetornoReforma = new ArrayList<>();
-    
 
     // --- ENUMS ---
     public enum StatusPneu { NOVO, DISPONIVEL, EM_USO, EM_MANUTENCAO, EM_REFORMA, DESCARTADO, VENDIDO }

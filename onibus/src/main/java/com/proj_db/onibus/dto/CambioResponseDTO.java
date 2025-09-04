@@ -15,7 +15,7 @@ public class CambioResponseDTO {
     private String tipoFluido;
     private Double quantidadeFluido;
     private Double capacidadeFluido;
-    private Long onibusId;
+    private OnibusSummaryDTO onibus; // <<< ALTERADO: Agora usa o DTO de resumo
 
     public CambioResponseDTO(Cambio cambio) {
         this.id = cambio.getId();
@@ -27,6 +27,6 @@ public class CambioResponseDTO {
         this.tipoFluido = cambio.getTipoFluido();
         this.quantidadeFluido = cambio.getQuantidadeFluido();
         this.capacidadeFluido = cambio.getCapacidadeFluido();
-        this.onibusId = (cambio.getOnibus() != null) ? cambio.getOnibus().getId() : null;
+        this.onibus = (cambio.getOnibus() != null) ? new OnibusSummaryDTO(cambio.getOnibus()) : null;
     }
 }

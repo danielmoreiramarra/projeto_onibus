@@ -1,21 +1,23 @@
 import api from './api';
 
+/**
+ * Objeto que encapsula todas as chamadas de API para a entidade 'Pneu'.
+ */
 export const pneuService = {
-  getAll: () => api.get('/pneus'),
-  getById: (id) => api.get(`/pneus/${id}`),
-  create: (pneu) => api.post('/pneus', pneu),
-  update: (id, pneu) => api.put(`/pneus/${id}`, pneu),
+  
+  // --- Métodos CRUD ---
+  create: (pneuCreateDTO) => api.post('/pneus', pneuCreateDTO),
+  update: (id, pneuUpdateDTO) => api.put(`/pneus/${id}`, pneuUpdateDTO),
   delete: (id) => api.delete(`/pneus/${id}`),
   
-  // ✅ NOVO MÉTODO: Busca combinada
+  // --- Consultas ---
+  getAll: () => api.get('/pneus'),
+  getById: (id) => api.get(`/pneus/${id}`),
   search: (terms) => api.get('/pneus/search', { params: terms }),
 
-  // Métodos de busca individual (mantidos por compatibilidade)
-  getByStatus: (status) => api.get(`/pneus/status/${status}`),
-  getByMarca: (marca) => api.get(`/pneus/marca/${marca}`),
-  getByMedida: (medida) => api.get(`/pneus/medida/${medida}`),
-  
-  // Métodos de relatórios (sem alteração)
-  getParaTroca: () => api.get('/pneus/para-troca'),
-  getGarantiaPrestesVencer: () => api.get('/pneus/garantia-prestes-vencer'),
+  // --- Ações de Negócio (Ciclo de Vida) ---
+  enviarParaManutencao: (pneuId) => api.patch(`/pneus/${pneuId}/enviar-manutencao`),
+  retornarDeManutencao: (pneuId) => api.patch(`/pneus/${pneuId}/retornar-manutencao`),
+  enviarParaReforma: (pneuId) => api.patch(`/pneus/${pneuId}/enviar-reforma`),
+  retornarDeReforma: (pneuId) => api.patch(`/pneus/${pneuId}/retornar-reforma`),
 };

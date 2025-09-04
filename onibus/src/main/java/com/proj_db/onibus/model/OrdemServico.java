@@ -107,7 +107,7 @@ public class OrdemServico {
         this.numeroOS = numeroOS;
         this.tipo = tipo;
         this.descricao = descricao;
-        this.dataPrevisaoInicio = dataPrevisaoInicio;
+        this.dataPrevisaoInicio = (dataPrevisaoInicio == null) ? LocalDate.now() : dataPrevisaoInicio;
         this.dataPrevisaoConclusao = dataPrevisaoConclusao;
         this.dataAbertura = LocalDate.now();
         this.status = StatusOrdemServico.ABERTA;
@@ -181,7 +181,7 @@ public class OrdemServico {
             return 0.0;
         }
         return this.itens.stream()
-                .mapToDouble(ItemOrdemServico::getSubtotal)
+                .mapToDouble(ItemOrdemServico::subtotal)
                 .sum();
     }
     

@@ -1,10 +1,8 @@
 export const Categoria = {
-    CAMBIO: 'CAMBIO',
-    MOTOR: 'MOTOR',
-    PNEU: 'PNEU',
-    ITEM_DE_ESTOQUE: 'ITEM_DE_ESTOQUE',
+    ITEM_GENERICO: 'ITEM_GENERICO',
     FERRAMENTA: 'FERRAMENTA',
-    OUTRO: 'OUTRO',
+    FLUIDO: 'FLUIDO',
+    OUTRO: 'OUTRO'
 };
 
 export const UnidadeMedida = {

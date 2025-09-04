@@ -16,7 +16,7 @@ public interface ItemOrdemServicoRepository extends JpaRepository<ItemOrdemServi
     Optional<ItemOrdemServico> findByOrdemServicoIdAndProdutoId(Long ordemServicoId, Long produtoId);
 
     // Query para relatórios: agrupa o total gasto por produto
-    @Query("SELECT i.produto.nome, SUM(i.subtotal) FROM ItemOrdemServico i WHERE i.ordemServico.status = 'FINALIZADA' GROUP BY i.produto.nome")
+    @Query("SELECT i.produto.nome, SUM(i.subtotal()) FROM ItemOrdemServico i WHERE i.ordemServico.status = 'FINALIZADA' GROUP BY i.produto.nome")
     List<Object[]> sumGastoTotalPorProduto();
 
     @Query("SELECT SUM(ios.quantidade * ios.precoUnitarioRegistrado) FROM ItemOrdemServico ios " +

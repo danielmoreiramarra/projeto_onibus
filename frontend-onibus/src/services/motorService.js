@@ -1,21 +1,23 @@
 import api from './api';
 
+/**
+ * Objeto que encapsula todas as chamadas de API para a entidade 'Motor'.
+ */
 export const motorService = {
-  getAll: () => api.get('/motores'),
-  getById: (id) => api.get(`/motores/${id}`),
-  create: (motor) => api.post('/motores', motor),
-  update: (id, motor) => api.put(`/motores/${id}`, motor),
+  
+  // --- Métodos CRUD ---
+  create: (motorCreateDTO) => api.post('/motores', motorCreateDTO),
+  update: (id, motorUpdateDTO) => api.put(`/motores/${id}`, motorUpdateDTO),
   delete: (id) => api.delete(`/motores/${id}`),
   
-  // ✅ NOVO MÉTODO: Busca combinada
+  // --- Consultas ---
+  getAll: () => api.get('/motores'),
+  getById: (id) => api.get(`/motores/${id}`),
   search: (terms) => api.get('/motores/search', { params: terms }),
 
-  // Métodos de busca individual (mantidos por compatibilidade)
-  getByStatus: (status) => api.get(`/motores/status/${status}`),
-  getByTipo: (tipo) => api.get(`/motores/tipo/${tipo}`),
-  getByMarca: (marca) => api.get(`/motores/marca/${marca}`),
-  
-  // Métodos de relatórios (sem alteração)
-  getParaRevisao: () => api.get('/motores/para-revisao'),
-  getGarantiaPrestesVencer: () => api.get('/motores/garantia-prestes-vencer'),
+  // --- Ações de Negócio (Ciclo de Vida) ---
+  enviarParaManutencao: (motorId) => api.patch(`/motores/${motorId}/enviar-manutencao`),
+  retornarDeManutencao: (motorId) => api.patch(`/motores/${motorId}/retornar-manutencao`),
+  enviarParaRevisao: (motorId) => api.patch(`/motores/${motorId}/enviar-revisao`),
+  retornarDaRevisao: (motorId) => api.patch(`/motores/${motorId}/retornar-revisao`),
 };

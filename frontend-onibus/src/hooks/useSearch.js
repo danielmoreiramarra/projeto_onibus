@@ -1,60 +1,53 @@
-// src/hooks/useSearch.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-const useSearch = (service, searchMapping) => {
+/**
+ * Hook genérico para gerenciar a busca e listagem de dados de um serviço.
+ * @param {object} service - O objeto de serviço com os métodos `getAll` e `search`.
+ */
+const useSearch = (service) => {
     const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true); // Inicia como true para o carregamento inicial
     const [error, setError] = useState(null);
     const [searchTerms, setSearchTerms] = useState({});
-    const [shouldFetch, setShouldFetch] = useState(true);
 
-    const fetchApi = async () => {
+    // <<< MELHORIA: A lógica de busca é memoizada com useCallback
+    const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            let response;
-            const terms = Object.fromEntries(
+            // Filtra termos de busca vazios ou nulos
+            const activeTerms = Object.fromEntries(
                 Object.entries(searchTerms).filter(([_, v]) => v != null && v !== '')
             );
-            
-            if (Object.keys(terms).length > 0) {
-                // ✅ Agora o hook chama o método search do service com todos os termos
-                response = await service.search(terms);
-            } else {
-                response = await service.getAll();
-            }
 
-            const responseData = response.data;
-            if (Array.isArray(responseData)) {
-                setData(responseData);
-            } else if (responseData) {
-                setData([responseData]);
-            } else {
-                setData([]);
-            }
+            const response = Object.keys(activeTerms).length > 0
+                ? await service.search(activeTerms)
+                : await service.getAll();
+            
+            // A API sempre retorna um array, então podemos atribuir diretamente
+            setData(response.data || []);
+
         } catch (err) {
-            setError(err.response?.data?.message || err.message || 'Erro ao buscar dados.');
+            const errorMessage = err.response?.data?.message || err.message || 'Erro ao buscar dados.';
+            setError(errorMessage);
             setData([]);
         } finally {
             setLoading(false);
         }
-        setShouldFetch(false);
-    };
+    }, [searchTerms, service]); // Recria a função apenas se os termos ou o serviço mudarem
 
+    // <<< MELHORIA: useEffect é acionado pela mudança na função fetchData
     useEffect(() => {
-        if (shouldFetch) {
-            fetchApi();
-        }
-    }, [shouldFetch, searchTerms, service]);
+        fetchData();
+    }, [fetchData]);
 
+    // Função que as páginas usarão para iniciar uma nova busca
     const onSearch = (terms) => {
         setSearchTerms(terms);
-        setShouldFetch(true);
     };
-    
-    const refetch = () => {
-        setShouldFetch(true);
-    };
+
+    // A função de refetch é a mesma que a de busca, garantindo consistência
+    const refetch = fetchData;
 
     return { data, loading, error, onSearch, refetch };
 };

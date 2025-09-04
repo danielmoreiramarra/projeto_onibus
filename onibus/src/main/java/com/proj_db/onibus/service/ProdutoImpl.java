@@ -47,7 +47,6 @@ public class ProdutoImpl implements ProdutoService {
         novoProduto.setDescricao(dto.getDescricao());
         novoProduto.setCodigoBarras(dto.getCodigoBarras());
         novoProduto.setEstoqueMinimo(dto.getEstoqueMinimo());
-        novoProduto.setLocalizacao(dto.getLocalizacao());
         
         // 3. Usa o método do modelo para definir o preço inicial e criar o primeiro registro no histórico
         novoProduto.atualizarPreco(dto.getPrecoInicial());
@@ -89,7 +88,6 @@ public class ProdutoImpl implements ProdutoService {
         produtoExistente.setCategoria(produtoDetails.getCategoria());
         produtoExistente.setUnidadeMedida(produtoDetails.getUnidadeMedida());
         produtoExistente.setEstoqueMinimo(produtoDetails.getEstoqueMinimo());
-        produtoExistente.setLocalizacao(produtoDetails.getLocalizacao());
         produtoExistente.setCodigoBarras(produtoDetails.getCodigoBarras());
         
         return produtoRepository.save(produtoExistente);

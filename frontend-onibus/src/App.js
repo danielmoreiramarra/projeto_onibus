@@ -10,7 +10,6 @@ import OnibusPage from './pages/OnibusPage';
 import OrdemServicoPage from './pages/OrdemServicoPage';
 import EstoquePage from './pages/EstoquePage';
 import ProdutoPage from './pages/ProdutoPage';
-import HistoricoPage from './pages/HistoricoPage';
 import RelatoriosPage from './pages/RelatoriosPage';
 import './App.css';
 
@@ -28,7 +27,6 @@ function App() {
           <Route path="/onibus" element={<OnibusPage />} />
           
           <Route path="/ordens-servico" element={<OrdemServicoPage />} />
-          <Route path="/historico-manutencao" element={<HistoricoPage />} />
           
           <Route path="/estoque" element={<EstoquePage />} />
           <Route path="/produtos" element={<ProdutoPage />} />

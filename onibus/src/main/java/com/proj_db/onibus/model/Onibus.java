@@ -4,8 +4,6 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.proj_db.onibus.model.HistoricoComponente.TipoEvento;
@@ -48,30 +46,51 @@ public class Onibus {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "ano_fabricacao", nullable = false)
+    @NotNull
     private Integer anoFabricacao;
+
     @Column(name = "capacidade", nullable = false)
+    @NotNull
     private Integer capacidade;
+
     @Column(name = "chassi", nullable = false, length = 100, unique = true)
+    @NotBlank
     private String chassi;
+
     @Column(name = "codigo_fabricacao", unique = true, nullable = false, length = 50)
+    @NotBlank
     private String codigoFabricacao;
+
     @Column(name = "data_compra", nullable = false)
+    @NotNull
     private LocalDate dataCompra;
+
     @Column(name = "quilometragem", nullable = false)
+    @NotNull
     @PositiveOrZero
     private Double quilometragem = 0.0;
+
     @Column(name = "marca", nullable = false, length = 100)
+    @NotBlank
     private String marca;
+
     @Column(name = "modelo", nullable = false, length = 50)
+    @NotBlank
     private String modelo;
+
     @Column(name = "numero_frota", unique = true, nullable = false, length = 20)
+    @NotBlank
     private String numeroFrota;
+
     @Column(name = "placa", nullable = false, length = 100, unique = true)
+    @NotBlank
     private String placa;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
+    @NotNull
     private StatusOnibus status = StatusOnibus.NOVO;
     
 
@@ -128,6 +147,7 @@ public class Onibus {
             FIM_OPERACAO
         }
     }
+
     public enum StatusOnibus { NOVO, DISPONIVEL, EM_OPERACAO, EM_MANUTENCAO, EM_REFORMA, APOSENTADO, VENDIDO }
 
     

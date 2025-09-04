@@ -309,6 +309,12 @@ public class Motor {
         return !LocalDate.now().isAfter(dataFimGarantia);
     }
 
+    public Long getDiasRestantesGarantia() {
+        if (!estaEmGarantia()) return 0L;
+        LocalDate dataFimGarantia = this.dataCompra.plusMonths(this.periodoGarantiaMeses);
+        return ChronoUnit.DAYS.between(LocalDate.now(), dataFimGarantia);
+    }
+
     // <<< NOVOS MÉTODOS PARA LÓGICA PREVENTIVA PROATIVA >>>
     public Long getDiasRestantesManutencao() {
         if (status == StatusMotor.DESCARTADO || status == StatusMotor.VENDIDO) return Long.MAX_VALUE;

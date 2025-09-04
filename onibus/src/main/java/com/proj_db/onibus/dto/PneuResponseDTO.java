@@ -13,7 +13,7 @@ public class PneuResponseDTO {
     private Pneu.StatusPneu status;
     private Pneu.PosicaoPneu posicao;
     private Double kmRodados;
-    private Long onibusId;
+    private OnibusSummaryDTO onibus; // <<< ALTERADO de Long para OnibusSummaryDTO
 
     public PneuResponseDTO(Pneu pneu) {
         this.id = pneu.getId();
@@ -23,6 +23,7 @@ public class PneuResponseDTO {
         this.status = pneu.getStatus();
         this.posicao = pneu.getPosicao();
         this.kmRodados = pneu.getKmRodados();
-        this.onibusId = (pneu.getOnibus() != null) ? pneu.getOnibus().getId() : null;
+        // <<< LÓGICA ALTERADA para usar o DTO de resumo
+        this.onibus = (pneu.getOnibus() != null) ? new OnibusSummaryDTO(pneu.getOnibus()) : null;
     }
 }

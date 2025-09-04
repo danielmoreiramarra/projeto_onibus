@@ -26,7 +26,7 @@ public class ItemOrdemServicoResponseDTO {
         this.produtoNome = item.getProduto().getNome();
         this.quantidade = item.getQuantidade();
         this.precoUnitarioRegistrado = item.getPrecoUnitarioRegistrado();
-        this.subtotal = item.getSubtotal();
+        this.subtotal = item.subtotal();
         this.descricao = item.getDescricao();
         this.dataAdicao = item.getDataAdicao();
     }

@@ -21,5 +21,4 @@ public class ProdutoCreateDTO {
     String codigoBarras;
     String descricao;
     @NotNull @Positive Integer estoqueMinimo;
-    String localizacao;
 }

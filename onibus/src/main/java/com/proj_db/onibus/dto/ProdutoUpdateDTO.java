@@ -18,7 +18,6 @@ public class ProdutoUpdateDTO {
     @NotNull Produto.Categoria categoria;
     @NotNull Produto.UnidadeMedida unidadeMedida;
     @NotNull @Positive Integer estoqueMinimo;
-    String localizacao;
     String codigoBarras;
     @NotBlank String codigoInterno;
 }

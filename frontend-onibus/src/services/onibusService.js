@@ -1,27 +1,59 @@
 import api from './api';
 
+// Objeto que encapsula todas as chamadas de API para a entidade 'Onibus'
 export const onibusService = {
+  
+  // --- Métodos CRUD ---
+  
+  // Busca todos os ônibus
   getAll: () => api.get('/onibus'),
+  
+  // Busca um ônibus específico pelo seu ID
   getById: (id) => api.get(`/onibus/${id}`),
-  create: (onibus) => api.post('/onibus', onibus),
-  update: (id, onibus) => api.put(`/onibus/${id}`, onibus),
+  
+  // Cria um novo ônibus. Envia o DTO de criação no corpo da requisição.
+  create: (onibusCreateDTO) => api.post('/onibus', onibusCreateDTO),
+  
+  // Atualiza as informações básicas de um ônibus. Envia o DTO de atualização.
+  update: (id, onibusUpdateDTO) => api.put(`/onibus/${id}`, onibusUpdateDTO),
+  
+  // Exclui um ônibus (apenas se permitido pelas regras de negócio)
   delete: (id) => api.delete(`/onibus/${id}`),
   
-  // ✅ NOVO MÉTODO: Busca combinada
+  // --- Busca Combinada ---
+
+  // Realiza uma busca com múltiplos critérios. 'terms' é um objeto (nosso DTO de busca).
+  // Ex: { marca: 'Volvo', status: 'EM_OPERACAO' }
   search: (terms) => api.get('/onibus/search', { params: terms }),
 
-  // Métodos de gestão de componentes (sem alteração)
-  instalarMotor: (onibusId, motorId) => api.patch(`/onibus/${onibusId}/instalar/motor/${motorId}`),
-  removerMotor: (onibusId, motorId) => api.patch(`/onibus/${onibusId}/remover/motor/${motorId}`),
-  instalarCambio: (onibusId, cambioId) => api.patch(`/onibus/${onibusId}/instalar/cambio/${cambioId}`),
-  removerCambio: (onibusId, cambioId) => api.patch(`/onibus/${onibusId}/remover/cambio/${cambioId}`),
-  instalarPneu: (onibusId, pneuId, posicao) => api.patch(`/onibus/${onibusId}/instalar/pneu/${pneuId}`, null, { params: { posicao } }),
-  removerPneu: (onibusId, pneuId) => api.patch(`/onibus/${onibusId}/remover/pneu/${pneuId}`),
-  
-  // Métodos de busca individual (mantidos por compatibilidade)
-  getByStatus: (status) => api.get(`/onibus/status/${status}`),
-  getByChassi: (chassi) => api.get(`/onibus/chassi/${chassi}`),
-  getByNumeroFrota: (numeroFrota) => api.get(`/onibus/frota/${numeroFrota}`),
-  getByModelo: (modelo) => api.get(`/onibus/modelo/${modelo}`),
-  getByMarca: (marca) => api.get(`/onibus/marca/${marca}`),
+  // --- Ações de Negócio e Ciclo de Vida ---
+
+  // Coloca um ônibus em operação
+  colocarEmOperacao: (onibusId) => api.patch(`/onibus/${onibusId}/colocar-em-operacao`),
+
+  // Retira um ônibus de operação
+  retirarDeOperacao: (onibusId) => api.patch(`/onibus/${onibusId}/retirar-de-operacao`),
+
+  // Registra uma nova viagem, atualizando a quilometragem do ônibus e de todos os seus pneus
+  registrarViagem: (onibusId, kmPercorridos) => api.post(`/onibus/${onibusId}/registrar-viagem`, null, { params: { kmPercorridos } }),
+
+  // --- Gerenciamento de Componentes ---
+
+  // Instala um motor em um ônibus
+  instalarMotor: (onibusId, motorId) => api.post(`/onibus/${onibusId}/motor/${motorId}`),
+
+  // Remove o motor de um ônibus
+  removerMotor: (onibusId) => api.delete(`/onibus/${onibusId}/motor`),
+
+  // Instala um câmbio em um ônibus
+  instalarCambio: (onibusId, cambioId) => api.post(`/onibus/${onibusId}/cambio/${cambioId}`),
+
+  // Remove o câmbio de um ônibus
+  removerCambio: (onibusId) => api.delete(`/onibus/${onibusId}/cambio`),
+
+  // Instala um pneu em uma posição específica de um ônibus
+  instalarPneu: (onibusId, pneuId, posicao) => api.post(`/onibus/${onibusId}/pneu/${pneuId}`, null, { params: { posicao } }),
+
+  // Remove um pneu de uma posição específica de um ônibus
+  removerPneu: (onibusId, posicao) => api.delete(`/onibus/${onibusId}/pneu`, { params: { posicao } }),
 };
