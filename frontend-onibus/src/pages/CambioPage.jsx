@@ -5,6 +5,7 @@ import BackButton from '../components/BackButton';
 import CambioDetailView from '../components/CambioDetailView';
 import AutocompleteInput from '../components/AutocompleteInput';
 import { cambioService } from '../services/cambioService';
+import { onibusService } from '../services/onibusService';
 import useSearch from '../hooks/useSearch';
 import { TipoCambio, StatusCambio } from '../constants/cambioEnums';
 
@@ -17,76 +18,81 @@ const CambioPage = () => {
   const [searchTerms, setSearchTerms] = useState({});
 
   // --- Lógica do Autocomplete ---
-  const handleAutocompleteSearch = useCallback(async (term) => {
-    // Busca rápida por modelo para as sugestões
-    const response = await cambioService.search({ modelo: term });
+  const handleAutocompleteSearch = useCallback(async (searchField, term) => {
+    // Se a busca for por ônibus, usamos o onibusService
+    if (searchField === 'onibus') {
+      const response = await onibusService.search({ numeroFrota: term, comCambio: true });
+      return response.data.map(o => ({ id: o.id, display: `${o.numeroFrota} - ${o.placa}` }));
+    }
+    // Para outros campos, usa o cambioService
+    const response = await cambioService.search({ [searchField]: term });
     return response.data;
   }, []);
 
-  const handleAutocompleteSelect = (cambio) => {
-    // Preenche os campos de busca quando um item é selecionado
-    setSearchTerms({
-        modelo: cambio.modelo,
-        marca: cambio.marca,
-        status: cambio.status,
-    });
+  const handleAutocompleteSelect = (item, fieldName) => {
+    if (fieldName === 'onibus') {
+      setSearchTerms(prev => ({ ...prev, onibusId: item.id, onibusDisplay: item.display }));
+    } else {
+      setSearchTerms({
+        modelo: item.modelo,
+        marca: item.marca,
+        numeroSerie: item.numeroSerie,
+      });
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    const {name, value} = e.target;
+    setSearchTerms(prev => ({ ...prev, [name]: value }))
   };
 
   // --- Handlers de Ações ---
   const handleCreate = () => {
-      setCurrentCambio({ dataCompra: new Date().toISOString().slice(0, 10) });
-      setIsEditing(false);
-      setView('FORM');
+    setCurrentCambio({ dataCompra: new Date().toISOString().slice(0, 10) });
+    setIsEditing(false);
+    setView('FORM');
   };
-
   const handleEdit = (cambio) => {
-      setCurrentCambio(cambio);
-      setIsEditing(true);
-      setView('FORM');
+    cambioService.getById(cambio.id).then(response => {
+        setCurrentCambio(response.data);
+        setIsEditing(true);
+        setView('FORM');
+    });
   };
-
-  const handleView = (cambio) => {
-      setCurrentCambio(cambio);
-      setView('DETAIL');
-  };
-
   const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza?')) {
+    if (window.confirm('Tem certeza que deseja excluir este câmbio? Esta ação não pode ser desfeita.')) {
       await cambioService.delete(id);
       refetch();
     }
   };
-
   const handleSubmit = async (formData) => {
     if (isEditing) {
       await cambioService.update(currentCambio.id, formData);
     } else {
       await cambioService.create(formData);
     }
+    handleReturnToList();
+  };
+  const handleView = (cambio) => {
+    cambioService.getById(cambio.id).then(response => {
+      setCurrentCambio(response.data);
+      setView('DETAIL');
+    });
+  };
+  const handleReturnToList = () => {
     setView('LIST');
+    setCurrentCambio(null);
     refetch();
   };
- 
-  const handleReturnToList = () => {
-      setView('LIST');
-      setCurrentCambio(null);
-      refetch();
-  }
-
-  // --- Definições ---
+  
+  // --- Definições de Colunas e Campos ---
   const columns = [
-    { key: 'id', label: 'ID' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
+    { key: 'numeroSerie', label: 'Nº Série' },
     { key: 'status', label: 'Status' },
-    { 
-      key: 'onibus', 
-      label: 'Ônibus Instalado',
-      format: (onibus) => {
-        if (!onibus) return 'N/A';
-        return `${onibus.modelo} - ${onibus.placa} (Frota: ${onibus.numeroFrota})`;
-      }
-    }
+    { key: 'numeroMarchas', label: 'Marchas' },
+    { key: 'onibus', label: 'Ônibus (Frota)', format: (onibus) => onibus ? onibus.numeroFrota : 'N/A' }
   ];
 
   const formFields = [
@@ -95,7 +101,7 @@ const CambioPage = () => {
     { name: 'numeroSerie', label: 'Número de Série', type: 'text', required: true },
     { name: 'codigoFabricacao', label: 'Código Fabricação', type: 'text', required: true },
     { name: 'tipo', label: 'Tipo', type: 'select', options: Object.values(TipoCambio).map(t => ({ value: t, label: t })), required: true },
-    { name: 'numeroMarchas', label: 'Número de Marchas', type: 'number', required: true },
+    { name: 'numeroMarchas', label: 'Nº de Marchas', type: 'number', required: true },
     { name: 'anoFabricacao', label: 'Ano Fabricação', type: 'number', required: true },
     { name: 'dataCompra', label: 'Data de Compra', type: 'date', required: true },
     { name: 'periodoGarantiaMeses', label: 'Garantia (meses)', type: 'number', defaultValue: 24, required: true },
@@ -103,65 +109,72 @@ const CambioPage = () => {
     { name: 'capacidadeFluido', label: 'Capacidade Fluido (L)', type: 'number', step: '0.1', required: true },
   ];
 
-  const renderContent = () => {
-      if (loading) return <p>Carregando...</p>;
-      if (error) return <div className="alert alert-danger">{error}</div>;
+  const renderListView = () => (
+    <>
+      <div className="card my-4">
+        <div className="card-header"><h5 className="mb-0">🔍 Busca Avançada de Câmbios</h5></div>
+        <div className="card-body">
+            <div className="row g-3">
+                 <div className="col-md-3">
+                    <AutocompleteInput label="Modelo" name="modelo" value={searchTerms.modelo || ''} onChange={handleSearchChange} onSearch={(term) => handleAutocompleteSearch('modelo', term)} onItemSelected={handleAutocompleteSelect} displayField="modelo"/>
+                 </div>
+                 <div className="col-md-3">
+                    <AutocompleteInput label="Nº de Série" name="numeroSerie" value={searchTerms.numeroSerie || ''} onChange={handleSearchChange} onSearch={(term) => handleAutocompleteSearch('numeroSerie', term)} onItemSelected={handleAutocompleteSelect} displayField="numeroSerie"/>
+                 </div>
+                 <div className="col-md-3">
+                    <AutocompleteInput label="Ônibus (Frota)" name="onibusDisplay" value={searchTerms.onibusDisplay || ''} onChange={(e) => handleSearchChange({target: {name: 'onibusDisplay', value: e.target.value}})} onSearch={(term) => handleAutocompleteSearch('onibus', term)} onItemSelected={(item) => handleAutocompleteSelect(item, 'onibus')} displayField="display"/>
+                 </div>
+                 <div className="col-md-3">
+                    <label className="form-label">Status</label>
+                    <select className="form-select" name="status" value={searchTerms.status || ''} onChange={handleSearchChange}>
+                        <option value="">Todos</option>
+                        {Object.values(StatusCambio).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                 </div>
+            </div>
+            <div className="mt-3 d-flex justify-content-end">
+                 <button className="btn btn-primary" onClick={() => onSearch(searchTerms)}>Buscar</button>
+            </div>
+        </div>
+      </div>
 
-      switch(view) {
-          case 'FORM':
-              return <CrudForm initialData={currentCambio} fields={formFields} onSubmit={handleSubmit} onCancel={handleReturnToList} title={isEditing ? 'Editar Câmbio' : 'Novo Câmbio'} />;
-          case 'DETAIL':
-              return <CambioDetailView cambio={currentCambio} onReturn={handleReturnToList} onUpdate={refetch} />;
-          default:
-              return (
-                  <>
-                      <div className="card my-4">
-                          <div className="card-header"><h5 className="mb-0">🔍 Busca Inteligente de Câmbios</h5></div>
-                          <div className="card-body">
-                              <div className="row g-3 align-items-end">
-                                  <div className="col-md-6">
-                                      <AutocompleteInput
-                                          label="Buscar por Modelo"
-                                          value={searchTerms.modelo || ''}
-                                          onChange={(value) => setSearchTerms(prev => ({ ...prev, modelo: value }))}
-                                          onSearch={handleAutocompleteSearch}
-                                          onItemSelected={handleAutocompleteSelect}
-                                          displayField="modelo"
-                                      />
-                                  </div>
-                                  <div className="col-md-4">
-                                      <label className="form-label">Filtrar por Status</label>
-                                      <select className="form-select" name="status" value={searchTerms.status || ''} onChange={(e) => setSearchTerms(prev => ({ ...prev, status: e.target.value }))}>
-                                          <option value="">Todos</option>
-                                          {Object.values(StatusCambio).map(s => <option key={s} value={s}>{s}</option>)}
-                                      </select>
-                                  </div>
-                                  <div className="col-md-2">
-                                      <button className="btn btn-primary w-100" onClick={() => onSearch(searchTerms)}>Buscar</button>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                      <CrudTable data={cambios} columns={columns} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
-                  </>
-              );
-      }
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <span className="text-muted">{cambios.length} câmbios encontrados.</span>
+        <button className="btn btn-sm btn-outline-secondary" onClick={() => onSearch(searchTerms)}>🔄 Atualizar</button>
+      </div>
+      <CrudTable data={cambios} columns={columns} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
+    </>
+  );
+
+  const renderContent = () => {
+    if (loading && !currentCambio) return <p className="text-center mt-5">Carregando...</p>;
+    if (error) return <div className="alert alert-danger">{error}</div>;
+
+    switch(view) {
+        case 'FORM':
+            return <CrudForm initialData={currentCambio} fields={formFields} onSubmit={handleSubmit} onCancel={handleReturnToList} title={isEditing ? 'Editar Câmbio' : 'Novo Câmbio'} />;
+        case 'DETAIL':
+            return <CambioDetailView cambio={currentCambio} onReturn={handleReturnToList} onUpdate={refetch} />;
+        default:
+            return renderListView();
+    }
   };
 
   return (
-      <div>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-              <h2>Gerenciamento de Câmbios</h2>
-              {view === 'LIST' && (
-                  <div className="btn-group">
-                      <button className="btn btn-primary" onClick={handleCreate}>➕ Novo Câmbio</button>
-                      <BackButton to="/" />
-                  </div>
-              )}
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2>Gerenciamento de Câmbios</h2>
+        {view === 'LIST' && (
+          <div className="btn-group">
+            <button className="btn btn-primary" onClick={handleCreate}>➕ Novo Câmbio</button>
+            <BackButton to="/" />
           </div>
-          {renderContent()}
+        )}
       </div>
+      {renderContent()}
+    </div>
   );
 };
 
 export default CambioPage;
+

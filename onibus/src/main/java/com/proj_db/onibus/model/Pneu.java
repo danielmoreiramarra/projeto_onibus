@@ -52,7 +52,7 @@ public class Pneu {
     private String codigoFabricacao;
 
     @Column(name = "data_compra", nullable = false)
-    @NotBlank
+    @NotNull
     private LocalDate dataCompra;
 
     @Column(name = "data_instalacao")
@@ -206,6 +206,20 @@ public class Pneu {
     public LocalDate getDataUltimaReforma() {
         if (historicoRetornoReforma.isEmpty()) return null;
         return historicoRetornoReforma.get(historicoRetornoReforma.size() - 1);
+    }
+
+    public boolean estaEmGarantia() {
+        if (this.status == StatusPneu.VENDIDO || this.status == StatusPneu.DESCARTADO) {
+            return false;
+        }
+        LocalDate dataFimGarantia = this.dataCompra.plusMonths(this.periodoGarantiaMeses);
+        return LocalDate.now().isBefore(dataFimGarantia) || LocalDate.now().isEqual(dataFimGarantia);
+    }
+
+    public Long getDiasRestantesGarantia() {
+        if (!estaEmGarantia()) return 0L;
+        LocalDate dataFimGarantia = this.dataCompra.plusMonths(this.periodoGarantiaMeses);
+        return ChronoUnit.DAYS.between(LocalDate.now(), dataFimGarantia);
     }
 
     // <<< NOVOS MÉTODOS PARA LÓGICA PREVENTIVA PROATIVA >>>

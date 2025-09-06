@@ -1,80 +1,111 @@
 import React, { useState, useEffect } from 'react';
 
+/**
+ * Formulário genérico e independente para Criar e Atualizar.
+ * Agora ele gerencia seu próprio estado interno.
+ */
 const CrudForm = ({ initialData, fields, onSubmit, onCancel, title, loading = false }) => {
   const [formData, setFormData] = useState({});
-  const [errors, setErrors] = useState({}); // <<< NOVO: Estado para erros de validação
 
+  // Efeito para preencher o formulário quando os dados iniciais mudam
   useEffect(() => {
-    // Garante que o formulário seja preenchido com todos os campos esperados
     const initialFormState = fields.reduce((acc, field) => {
-        acc[field.name] = initialData?.[field.name] ?? field.defaultValue ?? '';
+        // Usa os dados iniciais, ou um valor padrão do campo, ou uma string vazia
+        const initialValue = initialData?.[field.name];
+        if (field.type === 'date' && initialValue) {
+            // Garante que a data esteja no formato correto (YYYY-MM-DD) para o input
+            acc[field.name] = new Date(initialValue).toISOString().split('T')[0];
+        } else {
+            acc[field.name] = initialValue ?? field.defaultValue ?? '';
+        }
         return acc;
     }, {});
     setFormData(initialFormState);
   }, [initialData, fields]);
 
+  // Handler de mudança interno. Não precisa mais vir do pai.
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     let processedValue = value;
-    if (type === 'number') processedValue = value === '' ? null : Number(value);
+    if (type === 'number') {
+      processedValue = value === '' ? null : Number(value);
+    }
     setFormData(prev => ({ ...prev, [name]: processedValue }));
-    // Limpa o erro do campo ao ser modificado
-    if (errors[name]) {
-        setErrors(prev => ({...prev, [name]: null}));
-    }
   };
-  
-  // <<< NOVO: Função de validação no frontend
-  const validateForm = () => {
-    const newErrors = {};
-    const today = new Date().toISOString().split('T')[0];
-
-    for (const field of fields) {
-        const value = formData[field.name];
-        if (field.required && (!value || value.toString().trim() === '')) {
-            newErrors[field.name] = `${field.label} é obrigatório.`;
-        }
-        if (field.type === 'date' && value > today) {
-            newErrors[field.name] = `${field.label} não pode ser uma data futura.`;
-        }
-        if (field.name === 'dataCompra' && formData.anoFabricacao) {
-            const dataCompraAno = new Date(formData.dataCompra).getFullYear();
-            if (dataCompraAno < formData.anoFabricacao) {
-                newErrors.dataCompra = 'A data de compra não pode ser anterior ao ano de fabricação.';
-            }
-        }
-        if (field.type === 'number' && value < 0) {
-            newErrors[field.name] = `${field.label} não pode ser negativo.`;
-        }
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm()) {
-        onSubmit(formData);
-    }
+    // Envia o estado interno do formulário para o pai
+    onSubmit(formData);
   };
 
+  // Função interna para renderizar o campo de formulário correto
   const renderField = (field) => {
-    // ... (lógica de renderField, com uma pequena adição para mostrar o erro)
-    const commonProps = { /* ... */ };
-    const fieldWithError = (
-        <>
-            {/* Lógica de renderização (input, select, etc) */}
-            {errors[field.name] && <div className="invalid-feedback d-block">{errors[field.name]}</div>}
-        </>
+    const commonProps = {
+        className: "form-select",
+        id: field.name,
+        name: field.name,
+        value: formData[field.name] || '',
+        onChange: handleChange,
+        required: field.required,
+        disabled: loading
+    };
+
+    if (field.type === 'select') {
+        return (
+            <select {...commonProps}>
+                <option value="">Selecione...</option>
+                {field.options.map(option => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        );
+    }
+
+    // Para todos os outros tipos, usamos um input
+    return (
+        <input
+            {...commonProps}
+            type={field.type || 'text'}
+            className="form-control" // Sobrescreve o className para inputs
+            step={field.step}
+        />
     );
-    return fieldWithError;
   };
 
   return (
-    <div className="card">
-        {/* ... (resto do JSX do formulário) */}
+    <div className="card my-4 shadow-sm">
+      <div className="card-header">
+        <h5 className="card-title mb-0">{title}</h5>
+      </div>
+      <div className="card-body">
+        <form onSubmit={handleSubmit}>
+          <div className="row g-3">
+            {fields.map((field) => (
+              <div key={field.name} className="col-md-6 col-lg-4">
+                <label htmlFor={field.name} className="form-label">
+                  {field.label} {field.required && <span className="text-danger">*</span>}
+                </label>
+                {/* Chama a função renderField para criar o input/select */}
+                {renderField(field)}
+              </div>
+            ))}
+          </div>
+          <div className="d-flex gap-2 mt-4">
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar'}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={loading}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
 
 export default CrudForm;
+

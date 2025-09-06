@@ -46,6 +46,9 @@ public class PneuImpl implements PneuService {
         novoPneu.setPeriodoGarantiaMeses(pneuDetails.getPeriodoGarantiaMeses());
 
         // Status e kmRodados já são definidos com valores padrão no modelo
+        // <<< CORREÇÃO CRÍTICA: Define os valores de negócio iniciais >>>
+        novoPneu.setStatus(Pneu.StatusPneu.NOVO);
+        novoPneu.setKmRodados(0.0);
 
         // 3. Salva a nova entidade no banco
         return pneuRepository.save(novoPneu);
@@ -61,6 +64,7 @@ public class PneuImpl implements PneuService {
             });
         }
         
+        pneuExistente.setNumeroSerie(pneuDetails.getNumeroSerie());
         pneuExistente.setMarca(pneuDetails.getMarca());
         pneuExistente.setMedida(pneuDetails.getMedida());
         pneuExistente.setModelo(pneuDetails.getModelo());

@@ -20,7 +20,7 @@ const MotorPage = () => {
   const handleAutocompleteSearch = useCallback(async (searchField, term) => {
     // Se a busca for por ônibus, usamos o onibusService
     if (searchField === 'onibus') {
-        const response = await onibusService.search({ placa: term });
+        const response = await onibusService.search({ numeroFrota: term });
         // Mapeia para um formato que o AutocompleteInput entenda (id e um campo de exibição)
         return response.data.map(o => ({ id: o.id, display: `${o.placa} - ${o.numeroFrota}` }));
     }
@@ -63,8 +63,8 @@ const MotorPage = () => {
     });
   };
   const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza que deseja inativar este motor? Esta ação não pode ser desfeita.')) {
-      await motorService.archive(id);
+    if (window.confirm('Tem certeza que deseja excluir este motor? Esta ação não pode ser desfeita.')) {
+      await motorService.delete(id);
       refetch();
     }
   };
@@ -183,4 +183,3 @@ const MotorPage = () => {
   );
 };
 export default MotorPage;
-

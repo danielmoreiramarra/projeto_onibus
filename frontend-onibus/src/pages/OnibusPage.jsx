@@ -50,6 +50,11 @@ const OnibusPage = () => {
       status: onibus.status,
     });
   };
+  
+  const handleSearchChange = (e) => {
+    const {name, value} = e.target;
+    setSearchTerms(prev => ({ ...prev, [name]: value }))
+  };
 
   // --- Handlers de Ações ---
   const handleCreate = () => {
@@ -59,47 +64,54 @@ const OnibusPage = () => {
   };
 
   const handleEdit = (onibus) => {
-    setCurrentOnibus(onibus);
-    setIsEditing(true);
-    setView('FORM');
+    onibusService.getById(onibus.id).then(response => {
+        setCurrentOnibus(response.data);
+        setIsEditing(true);
+        setView('FORM');
+    });
   };
   
   const handleView = (onibus) => {
-      setCurrentOnibus(onibus);
-      setView('DETAIL');
+      onibusService.getById(onibus.id).then(response => {
+        setCurrentOnibus(response.data);
+        setView('DETAIL');
+      });
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza?')) {
-      await onibusService.delete(id);
+    if (window.confirm('Tem certeza que deseja excluir esse ônibus? Esta ação não pode ser desfeita.')) {
+      await onibusService.delete(id); 
       refetch();
     }
   };
 
   const handleSubmit = async (formData) => {
-    if (isEditing) {
-      await onibusService.update(currentOnibus.id, formData);
-    } else {
-      await onibusService.create(formData);
+    try {
+      if (isEditing) {
+        await onibusService.update(currentOnibus.id, formData);
+      } else {
+        await onibusService.create(formData);
+      }
+      handleReturnToList();
+    } catch (err) {
+      alert(`Falha ao salvar: ${err.response?.data || err.message}`);
     }
-    setView('LIST');
-    refetch();
   };
   
   const handleReturnToList = () => {
       setView('LIST');
       setCurrentOnibus(null);
+      refetch();
   };
   
-  // --- Definições ---
+  // --- Definições de Colunas e Campos ---
   const columns = [
-    { key: 'id', label: 'ID' },
     { key: 'placa', label: 'Placa' },
     { key: 'numeroFrota', label: 'Frota' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
     { key: 'status', label: 'Status' },
-    { key: 'quilometragem', label: 'KM', format: (km) => km.toFixed(1) },
+    { key: 'quilometragem', label: 'KM', format: (km) => km ? km.toFixed(1) : '0.0' },
   ];
 
   const formFields = [
@@ -113,6 +125,55 @@ const OnibusPage = () => {
     { name: 'capacidade', label: 'Capacidade', type: 'number', required: true },
     { name: 'dataCompra', label: 'Data de Compra', type: 'date', required: true },
   ];
+  
+  // --- Funções de Renderização ---
+  const renderListView = () => (
+    <>
+      <div className="card my-4">
+        <div className="card-header"><h5 className="mb-0">🔍 Busca Inteligente de Ônibus</h5></div>
+        <div className="card-body">
+            <div className="row g-3 align-items-end">
+                <div className="col-md-6">
+                    <AutocompleteInput
+                        label="Buscar por Placa"
+                        value={searchTerms.placa || ''}
+                        name="placa"
+                        onChange={handleSearchChange}
+                        onSearch={handleAutocompleteSearch}
+                        onItemSelected={handleAutocompleteSelect}
+                        displayField="placa"
+                    />
+                </div>
+                <div className="col-md-4">
+                      <label className="form-label">Filtrar por Status</label>
+                      <select className="form-select" name="status" value={searchTerms.status || ''} onChange={handleSearchChange}>
+                        <option value="">Todos</option>
+                        {Object.values(StatusOnibus).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                </div>
+                <div className="col-md-2">
+                      <button className="btn btn-primary w-100" onClick={() => onSearch(searchTerms)}>Buscar</button>
+                </div>
+            </div>
+        </div>
+      </div>
+      <CrudTable data={onibusList} columns={columns} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
+    </>
+  );
+
+  const renderContent = () => {
+    if (loading && !currentOnibus) return <p className="text-center mt-5">Carregando...</p>;
+    if (error) return <div className="alert alert-danger">{error}</div>;
+
+    switch(view) {
+        case 'FORM':
+            return <CrudForm initialData={currentOnibus} fields={formFields} onSubmit={handleSubmit} onCancel={handleReturnToList} title={isEditing ? '✏️ Editar Ônibus' : '➕ Novo Ônibus'} />;
+        case 'DETAIL':
+            return <OnibusDetailView onibus={currentOnibus} availableComponents={availableComponents} onReturn={handleReturnToList} onUpdate={refetch} />;
+        default: // LIST
+            return renderListView();
+    }
+  };
 
   return (
     <div>
@@ -125,54 +186,11 @@ const OnibusPage = () => {
           </div>
         )}
       </div>
-
-      {loading && <p>Carregando...</p>}
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      {!loading && !error && (
-        <>
-          {view === 'FORM' && (
-            <CrudForm initialData={currentOnibus} fields={formFields} onSubmit={handleSubmit} onCancel={handleReturnToList} title={isEditing ? 'Editar Ônibus' : 'Novo Ônibus'} />
-          )}
-          {view === 'DETAIL' && (
-            <OnibusDetailView onibus={currentOnibus} availableComponents={availableComponents} onReturn={handleReturnToList} onUpdate={refetch} />
-          )}
-          {view === 'LIST' && (
-            <>
-              <div className="card my-4">
-                  <div className="card-header"><h5 className="mb-0">🔍 Busca Inteligente de Ônibus</h5></div>
-                  <div className="card-body">
-                      <div className="row g-3 align-items-end">
-                          <div className="col-md-6">
-                              <AutocompleteInput
-                                  label="Buscar por Placa"
-                                  value={searchTerms.placa || ''}
-                                  onChange={(value) => setSearchTerms(prev => ({ ...prev, placa: value }))}
-                                  onSearch={handleAutocompleteSearch}
-                                  onItemSelected={handleAutocompleteSelect}
-                                  displayField="placa"
-                              />
-                          </div>
-                          <div className="col-md-4">
-                               <label className="form-label">Filtrar por Status</label>
-                               <select className="form-select" name="status" value={searchTerms.status || ''} onChange={(e) => setSearchTerms(prev => ({ ...prev, status: e.target.value }))}>
-                                  <option value="">Todos</option>
-                                  {Object.values(StatusOnibus).map(s => <option key={s} value={s}>{s}</option>)}
-                               </select>
-                          </div>
-                          <div className="col-md-2">
-                               <button className="btn btn-primary w-100" onClick={() => onSearch(searchTerms)}>Buscar</button>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-              <CrudTable data={onibusList} columns={columns} onEdit={handleEdit} onDelete={handleDelete} onView={handleView} />
-            </>
-          )}
-        </>
-      )}
+      
+      {renderContent()}
     </div>
   );
 };
 
 export default OnibusPage;
+

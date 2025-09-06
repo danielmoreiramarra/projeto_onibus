@@ -10,7 +10,6 @@ import OnibusPage from './pages/OnibusPage';
 import OrdemServicoPage from './pages/OrdemServicoPage';
 import EstoquePage from './pages/EstoquePage';
 import ProdutoPage from './pages/ProdutoPage';
-import RelatoriosPage from './pages/RelatoriosPage';
 import './App.css';
 
 function App() {
@@ -30,7 +29,6 @@ function App() {
           
           <Route path="/estoque" element={<EstoquePage />} />
           <Route path="/produtos" element={<ProdutoPage />} />
-          <Route path="/relatorios" element={<RelatoriosPage />} />
           
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
